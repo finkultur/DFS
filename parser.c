@@ -6,10 +6,11 @@
 #include <stdlib.h>
 
 struct cmdEntry {
-    int start_time;
-    char *cmd;
-    char **args;
-    char *cwd;
+    int start_time;   // Start time (in seconds since program start)
+    char *cmd;        // Command to run
+    char **args;      // Argument to command. Must include cmd as [0]
+    char *cwd;        // Directory to run command in
+    int app_run_time; // Approximated run time (if "lonely")
     struct cmdEntry *nextEntry;
 };
 
@@ -63,7 +64,6 @@ int parseLine(const char *line, struct cmdEntry *entry) {
     int index = 0; // index of line
     char *time = malloc(sizeof(char)*8); //Just temporary, parsed to int later.
 
-    int starttime;
     char *cmd = malloc(sizeof(char)*256);
     char **args = malloc(sizeof(char)*512);
     char *cwd = malloc(sizeof(char)*256);
@@ -77,8 +77,7 @@ int parseLine(const char *line, struct cmdEntry *entry) {
         time[i] = line[index++];
     }
     index++;
-    starttime = atoi(time);
-    entry->start_time = starttime;
+    entry->start_time = atoi(time);
 
     // Parse command
     for (i=0; line[index] != ' ' && line[index] != '\0'; i++) {
@@ -106,8 +105,18 @@ int parseLine(const char *line, struct cmdEntry *entry) {
     for (i=0; line[index] != ',' && line[index] != '\0'; i++) {
        cwd[i] = line[index++];
     }
+    index++;
     cwd[i] = '\0';
     entry->cwd = cwd;
+
+    // Parse approximate run time
+    for (i=0; line[index] != ',' && line[index] != '\0'; i++) {
+        time[i] = line[index++];    
+    }
+    index++;
+    time[i] = '\0';
+    entry->app_run_time = atoi(time);
+
     return 0;
 }
 

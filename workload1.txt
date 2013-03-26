@@ -1,5 +1,5 @@
-0,echo "1",/home/faj/
-2,echo "2",/home/faj/
-4,echo "3",/home/faj/
-4,echo "4",/home/faj/
-8,echo "5",/home/faj/
+0,echo "1",/home/faj/,1
+5,echo "2",/home/faj/,1
+5,echo "3",/home/faj/,1
+10,echo "4",/home/faj/,1
+15,echo "5",/home/faj/,1
