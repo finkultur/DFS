@@ -51,6 +51,10 @@ int remove_pid(pid_table table, pid_t pid);
  * otherwise -1. */
 int get_tile_num(pid_table table, pid_t pid);
 
+/* Sets the tile number for the specified process-id to the specified value.
+ * On success 0 is returned, otherwise -1. */
+int set_tile_num(pid_table table, pid_t pid, int tile_num);
+
 // FOR TESTING:
 void print_table(pid_table table);
 

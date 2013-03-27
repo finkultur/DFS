@@ -8,55 +8,94 @@
 
 static const int table_size = 8;
 static const int num_entries = 8;
+static const int num_tiles = 64;
 
+// Performs a test of the pid_table module:
 int main(int argc, char *argv[])
 {
-	int n, pid, tile_num;
-	pid_table table;
-
-	srand(time(NULL));
-
-	fputs("creating table...", stderr);
-	table = create_table(table_size);
-	fputs("ok\n", stderr);
-
-	fprintf(stderr, "table size: %i\n", get_size(table));
-
-	fprintf(stderr, "table count: %i\n", get_count(table));
-
+    int n, pid, tile_num;
     pid_t pids[num_entries];
-
+    pid_table table;
+    srand(time(NULL ));
+    // Create table:
+    printf("creating table...");
+    table = create_table(table_size);
+    printf("done\n");
+    printf("table size: %i\n", get_size(table));
+    printf("table count: %i\n", get_count(table));
     // Insert elements
-	for (n = 0; n < num_entries; n++)
-	{
-		pid = rand();
-        
+    for (n = 0; n < num_entries; n++)
+    {
+        pid = rand();
         pids[n] = pid;
+        tile_num = rand() % num_tiles;
+        printf("adding pid: %i tile_num: %i) ", pid, tile_num);
+        if (add_pid(table, pid, tile_num) == 0)
+        {
+            printf("[ok]\n");
+        }
+        else
+        {
+            printf("[failed]\n");
+        }
 
-		tile_num = rand() % 64;
-		fprintf(stderr, "adding pid: %i tile_num: %i) ", pid, tile_num),
-		add_pid(table, pid, tile_num);
-		fputs("[ok]\n", stderr);
-		fprintf(stderr, "table count: %i\n", get_count(table));
-	}
-
-    printf("table before deletion\n");
-    print_table(table);
-    // Remove elements
-    for (n=0; n<num_entries; n++) {
-        printf("removing pid %i\n", pids[n]);
-        remove_pid(table, pids[n]);
-        fprintf(stderr, "table count: %i\n", get_count(table));
-        fprintf(stderr, "table size: %i\n", get_size(table));
+        printf("table count: %i\n", get_count(table));
     }
-    printf("after deletion\n");
+    printf("table structure:\n");
+    print_table(table);
+    for (n = 0; n < num_entries; n++)
+    {
+        tile_num = rand() % 64;
+        printf("changing pid: %i tile_num: %i -> %i ", pids[n],
+                get_tile_num(table, pids[n]), tile_num);
+        if (set_tile_num(table, pids[n], tile_num) == 0)
+        {
+            printf("[ok]\n");
+        }
+        else
+        {
+            printf("[failed]\n");
+        }
+    }
+    printf("table structure:\n");
+    print_table(table);
+    // Remove elements:
+    for (n = 0; n < num_entries; n++)
+    {
+        printf("removing pid: %i ", pids[n]);
+        if (remove_pid(table, pids[n]) == 0)
+        {
+            printf("[ok]\n");
+        }
+        else
+        {
+            printf("[failed]\n");
+        }
+        printf("table count: %i\n", get_count(table));
+    }
+    printf("table structure:\n");
+    print_table(table);
+    for (n = 0; n < num_entries; n++)
+    {
+        pid = rand();
+        pids[n] = pid;
+        tile_num = rand() % num_tiles;
+        printf("adding pid: %i tile_num: %i) ", pid, tile_num);
+        if (add_pid(table, pid, tile_num) == 0)
+        {
+            printf("[ok]\n");
+        }
+        else
+        {
+            printf("[failed]\n");
+        }
 
-	fputs("printing table:\n", stderr);
-	print_table(table);
-
-	fputs("destroying table...", stderr);
-	destroy_table(table);
-	fputs("ok\n", stderr);
-
-	return 0;
+        printf("table count: %i\n", get_count(table));
+    }
+    printf("table structure:\n");
+    print_table(table);
+    printf("destroying table...");
+    destroy_table(table);
+    printf("done\n");
+    return 0;
 }
