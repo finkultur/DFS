@@ -8,6 +8,8 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
+#include <string.h>
+
 #include <signal.h>
 #include <sys/time.h>
 
@@ -27,12 +29,14 @@
 int start_process(void);
 void start_handler(int);
 void end_handler(int);
+int get_tile(void);
 
 // Global values:
 int counter = 0;
 struct cmdEntry *firstEntry;
 struct cmdEntry *next;
 pid_table table;
+int tileAlloc[NUM_OF_CPUS];
 
 /**
  * Main function.
@@ -70,19 +74,29 @@ int main(int argc, char *argv[]) {
     next = firstEntry;
     start_process();
     
-    // Loop "forever", when the last job is done the program returns anyway.
+    // Loop "forever", when the last job is done the program returns.
     while(1) {
         ;
     }
 
-    return 0;
+    return 0; // Unreachable code.
 }
 
+/*
+ * Handles the SIGALRM sent by the timer.
+ * Calls start_process()
+ */
 void start_handler(int sig) {
     start_process();
     signal(SIGALRM, start_handler);
 }
 
+/*
+ * Starts all processes with start_time less than or equal to the current
+ * time/counter. Derps with the pid table, allocates a specific tile
+ * to the process(es) and forks child process(es). Also keeps track of the
+ * next set of program to start.
+ */
 int start_process() {
 
     struct itimerval timer;
@@ -93,14 +107,27 @@ int start_process() {
         if (pid < 0) {
             return 1; // Fork failed
         }
+        else if (pid > 0) { // Parent process
+            // Try to get an empty tile
+            int tile_num = get_tile();
+            // Increment the number of processes running on that tile.
+            tileAlloc[tile_num]++;
+            // Add pid to table
+            add_pid(table, pid, tile_num);
 
+            // Print table for debugging purposes
+            print_table(table);
+        }
+        else if (pid == 0) { // Child process
 
-        int tile_num = 2; // no it's not really on tile #2
-        add_pid(table, pid, tile_num);
-
-        if (pid == 0) { // Child process
+            // This is stupid.
+            char fullpath[1024];
+            fullpath[0] = '\0';
+            strcat(fullpath, next->cwd);
+            strcat(fullpath, next->cmd);
             chdir(next->cwd);
-            int status = execvp(next->cmd, (char **)next->args);
+
+            int status = execvp(fullpath, (char **)next->args);
             printf("execvp failed with status %d\n", status);
             return 1;
         }
@@ -122,15 +149,35 @@ int start_process() {
     return 0;
 }
 
+/*
+ * Handles SIGCHLD interrupts sent by dying children.
+ */
 void end_handler(int sig) {
     int pid;
     pid = wait(NULL);
 
-    // Print table (before deletion)
-    print_table(table);
-    // Remove pid
+    // Get what tile the pid ran on
+    int tile_num = get_tile_num(table, pid);
+    // Decrement the number of processes on that tile
+    tileAlloc[tile_num]--;
+    // Remove pid from pid_table
     remove_pid(table, pid);
     
     printf("pid: %d is done.\n", pid);
     signal(SIGCHLD, end_handler);
 }
+
+/*
+ * Tries to get an empty tile.
+ * If all is occupied, return 0 (performance wise, this is stupid...).
+ * If no tile is free, it should be extended to return the tile with least 
+ * contention.
+ */
+int get_tile(void) {
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        if (tileAlloc[i] == 0) {
+            return i;
+        }
+    }
+    return 0; 
+} 

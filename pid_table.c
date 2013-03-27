@@ -244,11 +244,11 @@ void print_table(pid_table table)
 			{
 				if (itr->next != NULL)
 				{
-					fprintf(stdout, "(%i / %i) -> ", itr->pid, itr->tile_num);
+					fprintf(stdout, "(pid: %i , tile_num: %i) -> ", itr->pid, itr->tile_num);
 				}
 				else
 				{
-					fprintf(stdout, "(%i / %i)\n", itr->pid, itr->tile_num);
+					fprintf(stdout, "(pid: %i , tile_num: %i)\n", itr->pid, itr->tile_num);
 				}
 				itr = itr->next;
 			}

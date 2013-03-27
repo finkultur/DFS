@@ -1,5 +1,9 @@
-0,echo "1",/home/faj/,1
-5,echo "2",/home/faj/,1
-5,echo "3",/home/faj/,1
-10,echo "4",/home/faj/,1
-15,echo "5",/home/faj/,1
+0,sova 10,/home/faj/Kandidatarbete/DFS/ex_tests/,1
+1,sova 10,/home/faj/Kandidatarbete/DFS/ex_tests/,1
+2,sova 20,/home/faj/Kandidatarbete/DFS/ex_tests/,1
+3,sova 15,/home/faj/Kandidatarbete/DFS/ex_tests/,1
+5,echo "4",/usr/bin/,1
+5,echo "5",/usr/bin/,1
+7,sova 15,/home/faj/Kandidatarbete/DFS/ex_tests/,1
+8,sova 15,/home/faj/Kandidatarbete/DFS/ex_tests/,1
+
