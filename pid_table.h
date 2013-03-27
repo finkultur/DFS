@@ -8,6 +8,7 @@
 #define _PID_TABLE_H
 
 #include <unistd.h>
+#include <sys/types.h>
 
 /* Each table instance is represented by a pid_table_struct. */
 struct pid_table_struct;
