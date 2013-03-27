@@ -24,15 +24,32 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "table count: %i\n", get_count(table));
 
+    pid_t pids[num_entries];
+
+    // Insert elements
 	for (n = 0; n < num_entries; n++)
 	{
 		pid = rand();
+        
+        pids[n] = pid;
+
 		tile_num = rand() % 64;
 		fprintf(stderr, "adding pid: %i tile_num: %i) ", pid, tile_num),
 		add_pid(table, pid, tile_num);
 		fputs("[ok]\n", stderr);
 		fprintf(stderr, "table count: %i\n", get_count(table));
 	}
+
+    printf("table before deletion\n");
+    print_table(table);
+    // Remove elements
+    for (n=0; n<num_entries; n++) {
+        printf("removing pid %i\n", pids[n]);
+        remove_pid(table, pids[n]);
+        fprintf(stderr, "table count: %i\n", get_count(table));
+        fprintf(stderr, "table size: %i\n", get_size(table));
+    }
+    printf("after deletion\n");
 
 	fputs("printing table:\n", stderr);
 	print_table(table);

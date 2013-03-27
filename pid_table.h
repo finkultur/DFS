@@ -2,7 +2,7 @@
  *
  * A simple hash-table like module that is used to store data about process-id
  * to tile (cpu core) allocation.
- * */
+ */
 
 #ifndef _PID_TABLE_H
 #define _PID_TABLE_H

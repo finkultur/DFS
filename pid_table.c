@@ -1,6 +1,7 @@
 /* pid_table.c
  *
- * Implementation of the pid_table module. */
+ * Implementation of the pid_table module. 
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,20 +38,20 @@ pid_table create_table(int size)
 	struct pid_table_struct *new_table;
 	if (size <= 0)
 	{
-		return NULL ;
+		return NULL;
 	}
 	// Allocate table struct, return on error:
-	new_table = malloc(sizeof(struct pid_entry_struct));
-	if (new_table == NULL )
+	new_table = malloc(sizeof(struct pid_table_struct));
+	if (new_table == NULL)
 	{
-		return NULL ;
+		return NULL;
 	}
 	// Allocate data array (entry pointers), return on error:
 	new_table->data = malloc(size * sizeof(struct pid_entry_struct*));
-	if (new_table->data == NULL )
+	if (new_table->data == NULL)
 	{
 		free(new_table);
-		return NULL ;
+		return NULL;
 	}
 	new_table->size = size;
 	new_table->count = 0;
@@ -67,7 +68,7 @@ void destroy_table(pid_table table)
 {
 	int index;
 	struct pid_entry_struct *entry_itr, *next_itr;
-	if (table == NULL )
+	if (table == NULL)
 	{
 		return;
 	}
@@ -81,10 +82,10 @@ void destroy_table(pid_table table)
 		// Free entries at all tabled indices:
 		for (index = 0; index < table->size; index++)
 		{
-			if (table->data[index] != NULL )
+			if (table->data[index] != NULL)
 			{
 				entry_itr = table->data[index];
-				while (entry_itr != NULL )
+				while (entry_itr != NULL)
 				{
 					next_itr = entry_itr->next;
 					free(entry_itr);
@@ -100,7 +101,7 @@ void destroy_table(pid_table table)
 // Return table size:
 int get_size(pid_table table)
 {
-	if (table != NULL )
+	if (table != NULL)
 	{
 		return table->size;
 	}
@@ -110,7 +111,7 @@ int get_size(pid_table table)
 // Return table count:
 int get_count(pid_table table)
 {
-	if (table != NULL )
+	if (table != NULL)
 	{
 		return table->count;
 	}
@@ -124,7 +125,7 @@ int add_pid(pid_table table, pid_t pid, int tile_num)
 	struct pid_entry_struct *new_entry, *entry_itr;
 	// Allocate entry struct:
 	new_entry = malloc(sizeof(struct pid_entry_struct));
-	if (new_entry == NULL )
+	if (new_entry == NULL)
 	{
 		return -1;
 	}
@@ -136,7 +137,7 @@ int add_pid(pid_table table, pid_t pid, int tile_num)
 	// Get table index for entry:
 	hash_index = hash_value(table, pid);
 	// Table empty at index?
-	if (table->data[hash_index] == NULL )
+	if (table->data[hash_index] == NULL)
 	{
 		table->data[hash_index] = new_entry;
 	}
@@ -144,7 +145,7 @@ int add_pid(pid_table table, pid_t pid, int tile_num)
 	{
 		// Find last entry at index and insert new entry:
 		entry_itr = table->data[hash_index];
-		while (entry_itr->next != NULL )
+		while (entry_itr->next != NULL)
 		{
 			entry_itr = entry_itr->next;
 		}
@@ -161,9 +162,9 @@ int remove_pid(pid_table table, pid_t pid)
 	int hash_index;
 	struct pid_entry_struct *entry_itr;
 	// Get hashed table index:
-	hash_index = hash_value(table, pid);
+    hash_index = hash_value(table, pid);
 	// Table empty at index?
-	if (table->data[hash_index] == NULL )
+	if (table->data[hash_index] == NULL)
 	{
 		return -1;
 	}
@@ -174,22 +175,24 @@ int remove_pid(pid_table table, pid_t pid)
 	{
 		entry_itr = entry_itr->next;
 		// Return if end of list reached:
-		if (entry_itr == NULL )
+		if (entry_itr == NULL)
 		{
 			return -1;
 		}
 	}
 	// First entry in list at index:
-	if (entry_itr->prev == NULL )
+	if (entry_itr->prev == NULL)
 	{
 		table->data[hash_index] = entry_itr->next;
-		entry_itr->next->prev = NULL;
+        if (entry_itr->next != NULL) {
+    		entry_itr->next->prev = NULL;
+        }
 	}
 	else
 	{
 		entry_itr->prev->next = entry_itr->next;
 		// If not last entry in list:
-		if (entry_itr->next != NULL )
+		if (entry_itr->next != NULL)
 		{
 			entry_itr->next->prev = entry_itr->prev;
 		}
@@ -210,7 +213,7 @@ int get_tile_num(pid_table table, pid_t pid)
 	// Search list at table index for a matching entry:
 	entry_itr = table->data[hash_index];
 	// Loop to end of list:
-	while (entry_itr != NULL )
+	while (entry_itr != NULL)
 	{
 		// Return if mathching entry found:
 		if (entry_itr->pid == pid)
@@ -228,9 +231,8 @@ void print_table(pid_table table)
 {
 	int n;
 	struct pid_entry_struct *itr;
-	for (n = 0; n < table->size; n++)
-	{
-		if (table->data[n] == NULL )
+	for (n = 0; n < table->size; n++) {
+		if (table->data[n] == NULL)
 		{
 			fprintf(stdout, "table index %i: NULL\n", n);
 		}
@@ -238,9 +240,9 @@ void print_table(pid_table table)
 		{
 			fprintf(stdout, "table index %i: ", n);
 			itr = table->data[n];
-			while (itr != NULL )
+			while (itr != NULL)
 			{
-				if (itr->next != NULL )
+				if (itr->next != NULL)
 				{
 					fprintf(stdout, "(%i / %i) -> ", itr->pid, itr->tile_num);
 				}

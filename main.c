@@ -16,10 +16,11 @@
 //#include <tmc/udn.h>
 
 #include "parser.c"
+#include "pid_table.h"
 
 #define NUM_OF_CPUS 16
+#define TABLE_SIZE 8
 
-//int startAllNow(struct cmdEntry *firstEntry, int numOfProcs);
 //int parseFile(const char *filepath, struct cmdEntry *firstEntry);
 //int parseLine(const char *line, struct cmdEntry *entry);
 
@@ -31,12 +32,12 @@ void end_handler(int);
 int counter = 0;
 struct cmdEntry *firstEntry;
 struct cmdEntry *next;
-
+pid_table table;
 
 /**
  * Main function.
  *
- * usage: ./main <workloadfile> <logfile>
+ * usage: ./main <workloadfile> [logfile]
  */
 int main(int argc, char *argv[]) {
 
@@ -54,15 +55,22 @@ int main(int argc, char *argv[]) {
         freopen(logfile, "a+", stdout);
     }
 
+    // Initialize pid_table
+    table = create_table(TABLE_SIZE);
+
+    // Parse the file and set firstEntry
     firstEntry = malloc(sizeof(struct cmdEntry));
     parseFile(argv[1], firstEntry);
 
+    // Initialize signal handlers
     signal(SIGCHLD, end_handler);
     signal(SIGALRM, start_handler);
 
+    // Do the first entry in file to setup timers and stuff.
     next = firstEntry;
     start_process();
     
+    // Loop "forever", when the last job is done the program returns anyway.
     while(1) {
         ;
     }
@@ -85,9 +93,13 @@ int start_process() {
         if (pid < 0) {
             return 1; // Fork failed
         }
-        else if (pid == 0) { // Child process
+
+
+        int tile_num = 2; // no it's not really on tile #2
+        add_pid(table, pid, tile_num);
+
+        if (pid == 0) { // Child process
             chdir(next->cwd);
-            // Schedule somehow? :D
             int status = execvp(next->cmd, (char **)next->args);
             printf("execvp failed with status %d\n", status);
             return 1;
@@ -113,46 +125,12 @@ int start_process() {
 void end_handler(int sig) {
     int pid;
     pid = wait(NULL);
+
+    // Print table (before deletion)
+    print_table(table);
+    // Remove pid
+    remove_pid(table, pid);
+    
     printf("pid: %d is done.\n", pid);
     signal(SIGCHLD, end_handler);
 }
-
-// Starts all processes.
-// Takes the first entry and proceedes until nextentry is NULL
-/*
-int startAllNow(struct cmdEntry *entryProcess, int numOfProcs) {
-    
-    struct cmdEntry *processToRun = entryProcess;
-    int pid;
-
-    for (int i=0; processToRun != NULL; i++) {
-
-        pid = fork();
-        if (pid < 0) {
-            //tmc_task_die("fork() failed");
-        }
-        else if (pid == 0) { // Child process
-            //printf("starting command #%u: %s,(sent from child)\n", i, processToRun->cmd); 
-            sleep(processToRun->start_time);
-            chdir(processToRun->cwd);
-            
-            // SCHEDULE HERE?
-            //tmc_set_my_affinity(random(64)); // tile #i är antaligen upptagen
-
-            int status = execvp(processToRun->cmd, (char **)processToRun->args);
-            printf("execvp exited with status: %d\n", status);
-            return 1;
-        }
-        else { // Parent process
-            //wait(NULL);
-        }
-        processToRun = processToRun->nextEntry;
-    }
-
-    for (int i=0; i<numOfProcs; i++) {
-        wait(NULL); //waitpid(pid, NULL, 0);
-    }   
- 
-    return 0;
-}
-*/
