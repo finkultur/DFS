@@ -256,6 +256,9 @@ void print_table(pid_table table)
 {
     int n;
     struct pid_entry_struct *itr;
+
+    printf("Printing table:\n");
+
     for (n = 0; n < table->size; n++)
     {
         if (table->data[n] == NULL )

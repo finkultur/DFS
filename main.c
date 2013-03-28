@@ -19,7 +19,7 @@
 #include "parser.c"
 #include "pid_table.h"
 
-#define NUM_OF_CPUS 16
+#define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
 
 int start_process(void);
@@ -61,7 +61,8 @@ int main(int argc, char *argv[]) {
     if (tmc_cpus_get_my_affinity(&cpus) != 0) {
         tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
     }
-    if (tmc_cpus_count(&cpus) < NUM_CPUS) {
+    printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
+    if (tmc_cpus_count(&cpus) < NUM_OF_CPUS) {
         tmc_task_die("Insufficient cpus available.");
     }
 
@@ -121,16 +122,21 @@ int start_process() {
         }
         else if (pid == 0) { // Child process
             
-            tmc_cpus_set_my_cpu(tmc_find_nth_cpu(cpus, tile_num) < 0) {
+            if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
             }
               
             // This is stupid.
             char fullpath[1024];
-            getwd(fullpath);
+            getcwd(fullpath, 1024);
             strcat(fullpath, next->cwd);
             chdir(fullpath);
             strcat(fullpath, next->cmd);
+
+            int mypid = getpid();
+            int mycurcpu = tmc_cpus_get_my_current_cpu();
+            printf("I am pid #%i and I am on physical tile #%i, logical tile #%i\n", 
+                   mypid, mycurcpu, tile_num);
 
             int status = execvp(fullpath, (char **)next->args);
             printf("execvp failed with status %d\n", status);
