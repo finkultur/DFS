@@ -7,24 +7,20 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
-
 #include <string.h>
-
 #include <signal.h>
 #include <sys/time.h>
+#include <sched.h>
 
-//#include <tmc/cpus.h>
-//#include <tmc/task.h>
-//#include <tmc/udn.h>
+#include <tmc/cpus.h>
+#include <tmc/task.h>
+#include <tmc/udn.h>
 
 #include "parser.c"
 #include "pid_table.h"
 
 #define NUM_OF_CPUS 16
 #define TABLE_SIZE 8
-
-//int parseFile(const char *filepath, struct cmdEntry *firstEntry);
-//int parseLine(const char *line, struct cmdEntry *entry);
 
 int start_process(void);
 void start_handler(int);
@@ -37,6 +33,8 @@ struct cmdEntry *firstEntry;
 struct cmdEntry *next;
 pid_table table;
 int tileAlloc[NUM_OF_CPUS];
+
+cpu_set_t cpus;
 
 /**
  * Main function.
@@ -57,6 +55,14 @@ int main(int argc, char *argv[]) {
         char *logfile = argv[2];
         printf("DFS scheduler initalized, writing output to %s\n", logfile);
         freopen(logfile, "a+", stdout);
+    }
+
+    // Initialize cpu set
+    if (tmc_cpus_get_my_affinity(&cpus) != 0) {
+        tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
+    }
+    if (tmc_cpus_count(&cpus) < NUM_CPUS) {
+        tmc_task_die("Insufficient cpus available.");
     }
 
     // Initialize pid_table
@@ -103,33 +109,38 @@ int start_process() {
     struct timeval timeout;
     // This might have to be in a separate function
     while (next != NULL && next->start_time <= counter) {
+
+        // Try to get an empty tile
+        int tile_num = get_tile();
+        // Increment the number of processes running on that tile.
+        tileAlloc[tile_num]++;
+
         int pid = fork();
         if (pid < 0) {
             return 1; // Fork failed
         }
-        else if (pid > 0) { // Parent process
-            // Try to get an empty tile
-            int tile_num = get_tile();
-            // Increment the number of processes running on that tile.
-            tileAlloc[tile_num]++;
-            // Add pid to table
-            add_pid(table, pid, tile_num);
-
-            // Print table for debugging purposes
-            print_table(table);
-        }
         else if (pid == 0) { // Child process
-
+            
+            tmc_cpus_set_my_cpu(tmc_find_nth_cpu(cpus, tile_num) < 0) {
+                tmc_task_die("failure in 'tmc_set_my_cpu'");
+            }
+              
             // This is stupid.
             char fullpath[1024];
-            fullpath[0] = '\0';
+            getwd(fullpath);
             strcat(fullpath, next->cwd);
+            chdir(fullpath);
             strcat(fullpath, next->cmd);
-            chdir(next->cwd);
 
             int status = execvp(fullpath, (char **)next->args);
             printf("execvp failed with status %d\n", status);
             return 1;
+        }
+        else {
+            // Add pid to table
+            add_pid(table, pid, tile_num);
+            // Print table for debugging purposes
+            print_table(table);
         }
         next = next->nextEntry;
     }
