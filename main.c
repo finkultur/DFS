@@ -12,10 +12,12 @@
 #include <sys/time.h>
 #include <sched.h>
 
+// Tilera 
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 #include <tmc/udn.h>
 
+// DFS 
 #include "parser.c"
 #include "pid_table.h"
 
@@ -29,7 +31,6 @@ int get_tile(void);
 
 // Global values:
 int counter = 0;
-struct cmdEntry *firstEntry;
 struct cmdEntry *next;
 pid_table table;
 int tileAlloc[NUM_OF_CPUS];
@@ -69,16 +70,15 @@ int main(int argc, char *argv[]) {
     // Initialize pid_table
     table = create_table(TABLE_SIZE);
 
-    // Parse the file and set firstEntry
-    firstEntry = malloc(sizeof(struct cmdEntry));
-    parseFile(argv[1], firstEntry);
+    // Parse the file and set next to first entry in file.
+    next = malloc(sizeof(struct cmdEntry));
+    parseFile(argv[1], next);
 
     // Initialize signal handlers
     signal(SIGCHLD, end_handler);
     signal(SIGALRM, start_handler);
 
-    // Do the first entry in file to setup timers and stuff.
-    next = firstEntry;
+    // Start the first process(es) in file and setup timers and stuff.
     start_process();
     
     // Loop "forever", when the last job is done the program returns.
@@ -187,6 +187,7 @@ void end_handler(int sig) {
 /*
  * Tries to get an empty tile.
  * If all is occupied, return 0 (performance wise, this is stupid...).
+ * 
  * If no tile is free, it should be extended to return the tile with least 
  * contention.
  */
