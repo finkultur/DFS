@@ -21,8 +21,9 @@ int main(int argc, char *argv[])
     printf("creating table...");
     table = create_table(table_size);
     printf("done\n");
-    printf("table size: %i\n", get_size(table));
+    printf("table size: %zu\n", get_size(table));
     printf("table count: %i\n", get_count(table));
+    print_table(table);
     // Insert elements
     for (n = 0; n < num_entries; n++)
     {
@@ -41,7 +42,6 @@ int main(int argc, char *argv[])
 
         printf("table count: %i\n", get_count(table));
     }
-    printf("table structure:\n");
     print_table(table);
     for (n = 0; n < num_entries; n++)
     {
@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
             printf("[failed]\n");
         }
     }
-    printf("table structure:\n");
     print_table(table);
     // Remove elements:
     for (n = 0; n < num_entries; n++)
@@ -73,7 +72,6 @@ int main(int argc, char *argv[])
         }
         printf("table count: %i\n", get_count(table));
     }
-    printf("table structure:\n");
     print_table(table);
     for (n = 0; n < num_entries; n++)
     {
@@ -92,7 +90,6 @@ int main(int argc, char *argv[])
 
         printf("table count: %i\n", get_count(table));
     }
-    printf("table structure:\n");
     print_table(table);
     printf("destroying table...");
     destroy_table(table);
