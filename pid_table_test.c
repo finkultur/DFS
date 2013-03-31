@@ -1,4 +1,4 @@
-/* table_test.c */
+/* pid_table_test.c */
 
 #include "pid_table.h"
 
