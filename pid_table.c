@@ -32,7 +32,7 @@ int hash_value(pid_table table, pid_t pid)
 }
 
 // Create new table:
-pid_table create_table(size_t size)
+pid_table create_pid_table(size_t size)
 {
     int index;
     struct pid_table_struct *new_table;
@@ -64,7 +64,7 @@ pid_table create_table(size_t size)
 }
 
 // Deallocate table and all entries:
-void destroy_table(pid_table table)
+void destroy_pid_table(pid_table table)
 {
     int index;
     struct pid_entry_struct *entry_itr, *next_itr;

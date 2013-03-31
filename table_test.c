@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     srand(time(NULL ));
     // Create table:
     printf("creating table...");
-    table = create_table(table_size);
+    table = create_pid_table(table_size);
     printf("done\n");
     printf("table size: %zu\n", get_size(table));
     printf("table count: %i\n", get_count(table));
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     }
     print_table(table);
     printf("destroying table...");
-    destroy_table(table);
+    destroy_pid_table(table);
     printf("done\n");
     return 0;
 }
