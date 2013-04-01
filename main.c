@@ -31,10 +31,9 @@ int get_tile(void);
 
 // Global values:
 int counter = 0;
-struct cmdEntry *next;
 pid_table table;
 int tileAlloc[NUM_OF_CPUS];
-
+cmd_list list;
 cpu_set_t cpus;
 
 /**
@@ -71,8 +70,10 @@ int main(int argc, char *argv[]) {
     table = create_table(TABLE_SIZE);
 
     // Parse the file and set next to first entry in file.
-    next = malloc(sizeof(struct cmdEntry));
-    parseFile(argv[1], next);
+    if ((list = create_cmd_list(argv[1])) == NULL) {
+        printf("Failed to create command list from file: %s\n", argv[1]);
+        return 1;
+    }
 
     // Initialize signal handlers
     signal(SIGCHLD, end_handler);
@@ -81,7 +82,7 @@ int main(int argc, char *argv[]) {
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
     
-    // Loop "forever", when the last job is done the program returns.
+    // Loop "forever", when the last job is done the program exits.
     while(1) {
         ;
     }
@@ -108,10 +109,10 @@ int start_process() {
 
     struct itimerval timer;
     struct timeval timeout;
-    // This might have to be in a separate function
-    while (next != NULL && next->start_time <= counter) {
-
-        // Try to get an empty tile
+    cmd_entry cmd; 
+ 
+    while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
+        // Try to get an empty tile (or the tile with least contention)
         int tile_num = get_tile();
         // Increment the number of processes running on that tile.
         tileAlloc[tile_num]++;
@@ -129,16 +130,16 @@ int start_process() {
             // This is stupid.
             char fullpath[1024];
             getcwd(fullpath, 1024);
-            strcat(fullpath, next->cwd);
+            strcat(fullpath, cmd->dir);
             chdir(fullpath);
-            strcat(fullpath, next->cmd);
+            strcat(fullpath, cmd->cmd);
 
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
             printf("I am pid #%i and I am on physical tile #%i, logical tile #%i\n", 
                    mypid, mycurcpu, tile_num);
 
-            int status = execvp(fullpath, (char **)next->args);
+            int status = execvp(fullpath, (char **)cmd->argv);
             printf("execvp failed with status %d\n", status);
             return 1;
         }
@@ -148,21 +149,25 @@ int start_process() {
             // Print table for debugging purposes
             print_table(table);
         }
-        next = next->nextEntry;
+        remove_first(list);
     }
    
-    if (next != NULL) { 
-        timeout.tv_sec = (next->start_time)-counter;
+    if (cmd != NULL) { 
+        timeout.tv_sec = (cmd->start_time)-counter;
         timeout.tv_usec = 0;
         timer.it_interval = timeout;
         timer.it_value = timeout;
-        counter = next->start_time;
+        counter = cmd->start_time;
         setitimer(ITIMER_REAL, &timer, NULL);
     }
     else {
+        while (children_is_still_alive()) {
+            ; // Loop until all process is done
+        } 
         printf("My job here is done.\n");
         exit(0);
     }
+    
     return 0;
 }
 
@@ -198,4 +203,17 @@ int get_tile(void) {
         }
     }
     return 0; 
+}
+
+/*
+ * Checks if there are running child processes.
+ * Isn't it a syscall for this? 
+ */
+int children_is_still_alive() {
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        if (tileAlloc[i] != 0) {
+            return 1;
+        }
+    }
+    return 0;
 } 

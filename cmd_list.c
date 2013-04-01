@@ -200,7 +200,7 @@ static struct cmd_entry_struct *parse_line(char *line)
 	}
 	// Parse start time:
 	token = strtok(parse_buf, DELIMITER);
-	new_entry->start = atoi(token);
+	new_entry->start_time = atoi(token);
 	// Parse working dir:
 	token = strtok(NULL, DELIMITER);
 	str_length = strlen(token) + 1;

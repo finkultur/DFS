@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
 	// Read and print each command:
 	while ((cmd = get_first(list)) != NULL )
 	{
-		printf("start: %i ", cmd->start);
+		printf("start: %i ", cmd->start_time);
 		printf("dir: %s ", cmd->dir);
 		printf("cmd: %s ", cmd->cmd);
 		arg_index = 0;

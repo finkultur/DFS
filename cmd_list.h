@@ -17,7 +17,7 @@ struct cmd_list_struct;
 /* Struct representing each entry (command) in the list. */
 struct cmd_entry_struct
 {
-	int start;  // Command start time
+	int start_time;  // Command start time
 	char *dir;  // Working directory
 	char *cmd;  // Command name
 	char **argv;    // Argument vector
