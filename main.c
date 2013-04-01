@@ -18,8 +18,8 @@
 #include <tmc/udn.h>
 
 // DFS 
-#include "parser.c"
 #include "pid_table.h"
+#include "cmd_list.h"
 
 #define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
@@ -28,6 +28,7 @@ int start_process(void);
 void start_handler(int);
 void end_handler(int);
 int get_tile(void);
+int children_is_still_alive(void);
 
 // Global values:
 int counter = 0;
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Initialize pid_table
-    table = create_table(TABLE_SIZE);
+    table = create_pid_table(TABLE_SIZE);
 
     // Parse the file and set next to first entry in file.
     if ((list = create_cmd_list(argv[1])) == NULL) {
@@ -87,7 +88,6 @@ int main(int argc, char *argv[]) {
         ;
     }
 
-    return 0; // Unreachable code.
 }
 
 /*
@@ -162,7 +162,7 @@ int start_process() {
     }
     else {
         while (children_is_still_alive()) {
-            ; // Loop until all process is done
+            ; // Loop until all processes is done
         } 
         printf("My job here is done.\n");
         exit(0);
@@ -207,6 +207,7 @@ int get_tile(void) {
 
 /*
  * Checks if there are running child processes.
+ * Returns 1 if any children is still alive.
  * Isn't it a syscall for this? 
  */
 int children_is_still_alive() {
