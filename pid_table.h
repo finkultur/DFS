@@ -26,14 +26,14 @@ typedef struct pid_entry_struct *pid_entry;
 
 /* Creates a new table of the desired size and returns a pointer to it. On
  * failure a NULL-pointer is returned. */
-pid_table create_table(int size);
+pid_table create_pid_table(size_t size);
 
 /* Destroys the given table by freeing up allocated memory. All table entries
  * are also freed during the operation. */
-void destroy_table(pid_table table);
+void destroy_pid_table(pid_table table);
 
 /* Get the size of the specified table. */
-int get_size(pid_table table);
+size_t get_size(pid_table table);
 
 /* Get the current number of entries in the specified table. */
 int get_count(pid_table table);
