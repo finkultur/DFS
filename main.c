@@ -95,6 +95,7 @@ int main(int argc, char *argv[]) {
  * Calls start_process()
  */
 void start_handler(int sig) {
+    print_table(table);
     start_process();
     signal(SIGALRM, start_handler);
 }
@@ -123,9 +124,10 @@ int start_process() {
         }
         else if (pid == 0) { // Child process
             
-            if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
-                tmc_task_die("failure in 'tmc_set_my_cpu'");
-            }
+            // Intentionally commented out!
+            //if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
+            //    tmc_task_die("failure in 'tmc_set_my_cpu'");
+            //}
               
             // This is stupid.
             char fullpath[1024];
@@ -175,6 +177,7 @@ int start_process() {
  * Handles SIGCHLD interrupts sent by dying children.
  */
 void end_handler(int sig) {
+    print_table(table);
     int pid;
     pid = wait(NULL);
 

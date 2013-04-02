@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "pid_table.h"
+#include <tmc/cpus.h>
 
 // Table struct:
 struct pid_table_struct
@@ -271,15 +272,16 @@ void print_table(pid_table table)
             itr = table->data[n];
             while (itr != NULL )
             {
+                int physical_tile = tmc_cpus_get_task_current_cpu(itr->pid);
                 if (itr->next != NULL )
                 {
-                    printf("(pid: %i , tile_num: %i) -> ", itr->pid,
-                            itr->tile_num);
+                    printf("(pid: %i , logical tile_num: %i, physical tile: %i) -> ", itr->pid,
+                            itr->tile_num, physical_tile);
                 }
                 else
                 {
-                    printf("(pid: %i , tile_num: %i)\n", itr->pid,
-                            itr->tile_num);
+                    printf("(pid: %i , logical tile_num: %i, physical tile: %i)\n", itr->pid,
+                            itr->tile_num, physical_tile);
                 }
                 itr = itr->next;
             }
