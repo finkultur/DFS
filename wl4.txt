@@ -1,0 +1,14 @@
+0 /ex_tests/ sova 10
+2 /spec/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+2 /spec/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+2 /spec/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+2 /spec/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+5 /spec/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+5 /spec/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+6 /spec/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+8 /ex_tests/ sova 10
+10 /spec/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+20 /spec/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+25 /ex_tests/ sova 10
+30 /ex_tests/ sova 10
+40 /ex_tests/ sova 10

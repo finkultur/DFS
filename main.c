@@ -20,6 +20,7 @@
 // DFS 
 #include "pid_table.h"
 #include "cmd_list.h"
+#include "perfcount.h"
 
 #define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
@@ -29,6 +30,9 @@ void start_handler(int);
 void end_handler(int);
 int get_tile(void);
 int children_is_still_alive(void);
+int get_tile_with_least_contention(void);
+int setup_all_counters(void);
+void print_tileAlloc(void);
 
 // Global values:
 int counter = 0;
@@ -66,6 +70,9 @@ int main(int argc, char *argv[]) {
     if (tmc_cpus_count(&cpus) < NUM_OF_CPUS) {
         tmc_task_die("Insufficient cpus available.");
     }
+
+    // Clear and setup counters for every initialized tile.
+    setup_all_counters();
 
     // Initialize pid_table
     table = create_pid_table(TABLE_SIZE);
@@ -110,6 +117,8 @@ int start_process() {
     struct itimerval timer;
     struct timeval timeout;
     cmd_entry cmd; 
+
+    get_tile_with_least_contention();
  
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
@@ -193,8 +202,7 @@ void end_handler(int sig) {
  * Tries to get an empty tile.
  * If all is occupied, return 0 (performance wise, this is stupid...).
  * 
- * If no tile is free, it should be extended to return the tile with least 
- * contention.
+ * If no tile is free, it tries to get the tile with the least contention. 
  */
 int get_tile(void) {
     for (int i=0;i<NUM_OF_CPUS;i++) {
@@ -202,7 +210,7 @@ int get_tile(void) {
             return i;
         }
     }
-    return 0; 
+    return get_tile_with_least_contention();
 }
 
 /*
@@ -212,9 +220,76 @@ int get_tile(void) {
  */
 int children_is_still_alive() {
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        if (tileAlloc[i] != 0) {
+        if (tileAlloc[i] > 0) {
             return 1;
         }
     }
     return 0;
+}
+
+/**
+ * Set up counters for all initialized tiles.
+ */ 
+int setup_all_counters() {
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, i)) < 0) {
+                tmc_task_die("failure in 'tmc_set_my_cpu'");
+                return 1;
+        }
+        clear_counters();
+        setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
+    }
+    return 0; 
+}
+
+/**
+ * Prints the tile allocation table.
+ */
+void print_tileAlloc() {
+    printf("Process allocation: ");
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        printf("#%i:%i, ", i, tileAlloc[i]);
+    }
+    printf("\n");
+} 
+
+/**
+ * Returns the tile with the lowest write miss rate.
+ */
+int get_tile_with_least_contention() {
+    int best_tile = 0;
+    float min_value = 1.0;
+    int wr_miss, wr_cnt, drd_miss, drd_cnt;
+    float wr_miss_rate, drd_miss_rate;
+
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, i)) < 0) {
+                tmc_task_die("failure in 'tmc_set_my_cpu'");
+        }
+        read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
+        if (wr_cnt != 0) {
+            wr_miss_rate = ((float) wr_miss) / wr_cnt;
+        }
+        else {
+            wr_miss_rate = 0.0;
+        }
+        if (drd_cnt != 0) {
+            drd_miss_rate = ((float) drd_miss) / drd_cnt;
+        }
+        else {
+            drd_miss_rate = 0.0;
+        }
+        // Set the best tile to the one with lowest cache write miss rate.
+        if (wr_miss_rate < min_value) {
+                min_value = wr_miss_rate;
+                best_tile = i;
+        }
+        /*
+        printf("Tile #%i:\n", i);
+        printf("wr_miss: %i, wr_cnt: %i, drd_miss: %i, drd_cnt: %i\n",
+               wr_miss, wr_cnt, drd_miss, drd_cnt);
+        printf("Write miss rate: %f, Read miss rate: %f\n", wr_miss_rate, drd_miss_rate);
+        */
+    }
+    return best_tile;
 } 
