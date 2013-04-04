@@ -10,6 +10,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <time.h>
 #include <sched.h>
 
 // Tilera 
@@ -40,6 +41,8 @@ pid_table table;
 int tileAlloc[NUM_OF_CPUS];
 cmd_list list;
 cpu_set_t cpus;
+
+time_t start_time;
 
 /**
  * Main function.
@@ -86,6 +89,9 @@ int main(int argc, char *argv[]) {
     // Initialize signal handlers
     signal(SIGCHLD, end_handler);
     signal(SIGALRM, start_handler);
+
+    // Get time
+    start_time = time(NULL);
 
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
@@ -174,6 +180,7 @@ int start_process() {
             ; // Loop until all processes is done
         } 
         printf("My job here is done.\n");
+        printf("Workload finished in %i", time(NULL)-start_time);
         exit(0);
     }
     
