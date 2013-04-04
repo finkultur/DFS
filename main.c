@@ -24,9 +24,12 @@
 #define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
 
+// RTS handlers:
+void start_handler(int, siginfo_t*, void*);
+void end_handler(int, siginfo_t*, void*);
+//void start_handler(int);
+//void end_handler(int);
 int start_process(void);
-void start_handler(int);
-void end_handler(int);
 int get_tile(void);
 int children_is_still_alive(void);
 
@@ -43,6 +46,10 @@ cpu_set_t cpus;
  * usage: ./main <workloadfile> [logfile]
  */
 int main(int argc, char *argv[]) {
+
+	// RTS actions:
+    struct sigaction start_action;
+    struct sigaction end_action;
 
     // Check command line arguments
     if (argc < 2 || argc > 3) {
@@ -76,9 +83,33 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // Init RTS for process start:
+    start_action.sa_handler = NULL;
+    start_action.sa_flags = SA_SIGINFO;
+    start_action.sa_sigaction = start_handler;
+    // Install handler (blocking SIGALRM/SIGSCHLD during handler execution):
+    if (sigemptyset(&start_action.sa_mask) != 0
+    		|| sigaddset(&start_action.sa_mask, SIGALRM) != 0
+    		|| sigaddset(&start_action.sa_mask, SIGCHLD) != 0
+    		|| sigaction(SIGALRM, &start_action, NULL) != 0) {
+    	printf("Failed to setup handler for SIGALRM\n");
+    }
+
+    // Init RTS for process termination:
+    end_action.sa_handler = NULL;
+    end_action.sa_flags = SA_SIGINFO;
+    end_action.sa_sigaction = end_handler;
+    // Install handler (blocking SIGCHLD/SIGALRM during handler execution):
+    if (sigemptyset(&end_action.sa_mask) != 0
+    	|| sigaddset(&end_action.sa_mask, SIGCHLD) != 0
+    	|| sigaddset(&end_action.sa_mask, SIGALRM) != 0
+    	|| sigaction(SIGCHLD, &end_action, NULL) != 0) {
+    	printf("Failed to setup handler for SIGCHLD\n");
+    }
+
     // Initialize signal handlers
-    signal(SIGCHLD, end_handler);
-    signal(SIGALRM, start_handler);
+    // signal(SIGCHLD, end_handler);
+    // signal(SIGALRM, start_handler);
 
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
@@ -94,9 +125,30 @@ int main(int argc, char *argv[]) {
  * Handles the SIGALRM sent by the timer.
  * Calls start_process()
  */
-void start_handler(int sig) {
+// void start_handler(int sig) {
+void start_handler(int signo, siginfo_t *info, void *context) {
     start_process();
-    signal(SIGALRM, start_handler);
+    //signal(SIGALRM, start_handler);
+}
+
+/*
+ * Handles SIGCHLD interrupts sent by dying children.
+ */
+//void end_handler(int sig) {
+void end_handler(int signo, siginfo_t *info, void *context)
+{
+    int pid;
+    pid = wait(NULL);
+
+    // Get what tile the pid ran on
+    int tile_num = get_tile_num(table, pid);
+    // Decrement the number of processes on that tile
+    tileAlloc[tile_num]--;
+    // Remove pid from pid_table
+    remove_pid(table, pid);
+
+    printf("pid: %d is done.\n", pid);
+ //   signal(SIGCHLD, end_handler);
 }
 
 /*
@@ -169,24 +221,6 @@ int start_process() {
     }
     
     return 0;
-}
-
-/*
- * Handles SIGCHLD interrupts sent by dying children.
- */
-void end_handler(int sig) {
-    int pid;
-    pid = wait(NULL);
-
-    // Get what tile the pid ran on
-    int tile_num = get_tile_num(table, pid);
-    // Decrement the number of processes on that tile
-    tileAlloc[tile_num]--;
-    // Remove pid from pid_table
-    remove_pid(table, pid);
-    
-    printf("pid: %d is done.\n", pid);
-    signal(SIGCHLD, end_handler);
 }
 
 /*
