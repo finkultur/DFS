@@ -4,7 +4,7 @@ CCFLAGS= -Wall -std=c99
 LNFLAGS= -ltmc
 
 tilera: main pid_table cmd_list
-	$(TILECC) $(CCFLAGS) $(LNARGS) -o main main.o pid_table.o cmd_list.o
+	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o pid_table.o cmd_list.o
 
 main: main.c
 	$(TILECC) $(CCFLAGS) -c main.c main.o
