@@ -27,8 +27,7 @@
 // RTS handlers:
 void start_handler(int, siginfo_t*, void*);
 void end_handler(int, siginfo_t*, void*);
-//void start_handler(int);
-//void end_handler(int);
+
 int start_process(void);
 int get_tile(void);
 int children_is_still_alive(void);
@@ -107,17 +106,14 @@ int main(int argc, char *argv[]) {
     	printf("Failed to setup handler for SIGCHLD\n");
     }
 
-    // Initialize signal handlers
-    // signal(SIGCHLD, end_handler);
-    // signal(SIGALRM, start_handler);
-
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
     
     // Loop "forever", when the last job is done the program exits.
-    while(1) {
+    while(children_is_still_alive()) {
         ;
     }
+    return 0;
 
 }
 
@@ -125,16 +121,13 @@ int main(int argc, char *argv[]) {
  * Handles the SIGALRM sent by the timer.
  * Calls start_process()
  */
-// void start_handler(int sig) {
 void start_handler(int signo, siginfo_t *info, void *context) {
     start_process();
-    //signal(SIGALRM, start_handler);
 }
 
 /*
  * Handles SIGCHLD interrupts sent by dying children.
  */
-//void end_handler(int sig) {
 void end_handler(int signo, siginfo_t *info, void *context)
 {
     int pid;
@@ -146,9 +139,8 @@ void end_handler(int signo, siginfo_t *info, void *context)
     tileAlloc[tile_num]--;
     // Remove pid from pid_table
     remove_pid(table, pid);
-
+    // Printing from signal handlers is stupid:
     printf("pid: %d is done.\n", pid);
- //   signal(SIGCHLD, end_handler);
 }
 
 /*
@@ -212,15 +204,27 @@ int start_process() {
         counter = cmd->start_time;
         setitimer(ITIMER_REAL, &timer, NULL);
     }
-    else {
-        while (children_is_still_alive()) {
-            ; // Loop until all processes is done
-        } 
-        printf("My job here is done.\n");
-        exit(0);
-    }
-    
+    // Disable timer. I got some weird segmentation fault with this:
+    /*else { 
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 0;
+        timer.it_interval = timeout;
+        timer.it_value = timeout;
+        counter = cmd->start_time;
+        setitimer(ITIMER_REAL, &timer, NULL);
+    }*/
     return 0;
+}
+
+/*
+ * Prints the tileAlloc array
+ */
+void print_tileAlloc() {
+    printf("Process allocation: ");
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        printf("%i:%i, ", i, tileAlloc[i]);
+    }
+    printf("\n");
 }
 
 /*
