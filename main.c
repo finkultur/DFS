@@ -20,6 +20,7 @@
 // DFS 
 #include "pid_table.h"
 #include "cmd_list.h"
+#include "sched_algs.h"
 
 #define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
@@ -157,7 +158,7 @@ int start_process() {
  
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
-        int tile_num = get_tile();
+        int tile_num = get_empty_tile(&cpus, tileAlloc);
         // Increment the number of processes running on that tile.
         tileAlloc[tile_num]++;
 
@@ -225,22 +226,6 @@ void print_tileAlloc() {
         printf("%i:%i, ", i, tileAlloc[i]);
     }
     printf("\n");
-}
-
-/*
- * Tries to get an empty tile.
- * If all is occupied, return 0 (performance wise, this is stupid...).
- * 
- * If no tile is free, it should be extended to return the tile with least 
- * contention.
- */
-int get_tile(void) {
-    for (int i=0;i<NUM_OF_CPUS;i++) {
-        if (tileAlloc[i] == 0) {
-            return i;
-        }
-    }
-    return 0; 
 }
 
 /*
