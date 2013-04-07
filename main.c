@@ -30,7 +30,6 @@ void start_handler(int, siginfo_t*, void*);
 void end_handler(int, siginfo_t*, void*);
 
 int start_process(void);
-int get_tile(void);
 int children_is_still_alive(void);
 
 // Global values:
@@ -50,6 +49,15 @@ int main(int argc, char *argv[]) {
 	// RTS actions:
     struct sigaction start_action;
     struct sigaction end_action;
+
+    // Save starting time
+    long long int start_time = time(NULL);
+    printf("Start time is: %lld\n", start_time);
+
+    // Initialize tileAlloc to zeros, this shouldn't be necessary (?)
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        tileAlloc[i] = 0;
+    }
 
     // Check command line arguments
     if (argc < 2 || argc > 3) {
@@ -114,8 +122,19 @@ int main(int argc, char *argv[]) {
     while(children_is_still_alive()) {
         ;
     }
-    return 0;
 
+    // Print time
+    long long int end_time = time(NULL);
+    printf("Start time is: %lld\n", start_time);
+    printf("End time is: %lld\n", end_time);
+
+    long long int total_time;
+    total_time = end_time - start_time;
+
+    printf("Workload finished!\n");
+    printf("Time elapsed: %lld\n", total_time);
+
+    return 0;
 }
 
 /*
@@ -141,7 +160,7 @@ void end_handler(int signo, siginfo_t *info, void *context)
     // Remove pid from pid_table
     remove_pid(table, pid);
     // Printing from signal handlers is stupid:
-    printf("pid: %d is done.\n", pid);
+    //printf("pid: %d is done.\n", pid);
 }
 
 /*
@@ -158,7 +177,7 @@ int start_process() {
  
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
-        int tile_num = get_empty_tile(&cpus, tileAlloc);
+        int tile_num = get_tile(&cpus, tileAlloc);
         // Increment the number of processes running on that tile.
         tileAlloc[tile_num]++;
 
@@ -171,20 +190,15 @@ int start_process() {
             if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
             }
-              
-            // This is stupid.
-            char fullpath[1024];
-            getcwd(fullpath, 1024);
-            strcat(fullpath, cmd->dir);
-            chdir(fullpath);
-            strcat(fullpath, cmd->cmd);
-
+            
+            /*   
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
             printf("I am pid #%i and I am on physical tile #%i, logical tile #%i\n", 
                    mypid, mycurcpu, tile_num);
-
-            int status = execvp(fullpath, (char **)cmd->argv);
+            */
+            chdir(cmd->dir);
+            int status = execv(cmd->cmd, (char **)cmd->argv);
             printf("execvp failed with status %d\n", status);
             return 1;
         }
@@ -192,7 +206,7 @@ int start_process() {
             // Add pid to table
             add_pid(table, pid, tile_num);
             // Print table for debugging purposes
-            print_table(table);
+            //print_table(table);
         }
         remove_first(list);
     }

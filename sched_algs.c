@@ -13,6 +13,19 @@
 #include "sched_algs.h"
 
 /*
+ * Returns a suitable tile.
+ */
+int get_tile(cpu_set_t *cpus, int *tileAlloc) {
+    int best_tile;
+    if (best_tile = get_empty_tile(cpus, tileAlloc) >= -1) {
+        return best_tile;
+    }
+    else {
+        return get_tile_with_min_write_miss_rate(cpus);
+    }
+}
+
+/*
  * Tries to get an empty tile, given a pointer to a set of cpus.
  * Returns -1 if no tile is empty.
  */
@@ -51,12 +64,12 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
         else {
             wr_miss_rate = 0.0;
         }
-        if (drd_cnt != 0) {
+        /*if (drd_cnt != 0) {
             drd_miss_rate = ((float) drd_miss) / drd_cnt;
         }
         else {
             drd_miss_rate = 0.0;
-        }
+        }*/
         // Set the best tile to the one with lowest cache write miss rate.
         if (wr_miss_rate < min_value) {
                 min_value = wr_miss_rate;
@@ -65,44 +78,3 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
     }
     return best_tile;
 }
-/*
-int get_tile_with_least_write_miss_rate(cpu_set_t *cpus) {
-
-    int num_of_cpus = tmc_cpus_count(cpus);
-    int best_tile = 0;
-    float min_value = 1.0;
-    int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    float wr_miss_rate, drd_miss_rate;
-
-    for (int i=0;i<num_of_cpus;i++) {
-        if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus, i)) < 0) {
-                tmc_task_die("failure in 'tmc_set_my_cpu'");
-        }
-        read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-        if (wr_cnt != 0) {
-            wr_miss_rate = ((float) wr_miss) / wr_cnt;
-        }
-        else {
-            wr_miss_rate = 0.0;
-        }
-        if (drd_cnt != 0) {
-            drd_miss_rate = ((float) drd_miss) / drd_cnt;
-        }
-        else {
-            drd_miss_rate = 0.0;
-        }
-        // Set the best tile to the one with lowest cache write miss rate.
-        if (wr_miss_rate < min_value) {
-            min_value = wr_miss_rate;
-            best_tile = i;
-        }
-        
-        printf("Tile #%i:\n", i);
-        printf("wr_miss: %i, wr_cnt: %i, drd_miss: %i, drd_cnt: %i\n",
-               wr_miss, wr_cnt, drd_miss, drd_cnt);
-        printf("Write miss rate: %f, Read miss rate: %f\n", wr_miss_rate, drd_miss_rate);
-        
-    }
-    return best_tile;
-}
-*/
