@@ -38,6 +38,7 @@ pid_table table;
 int tileAlloc[NUM_OF_CPUS];
 cmd_list list;
 cpu_set_t cpus;
+int last_program_started = 0;
 
 /**
  * Main function.
@@ -119,7 +120,7 @@ int main(int argc, char *argv[]) {
     start_process();
     
     // Loop "forever", when the last job is done the program exits.
-    while(children_is_still_alive()) {
+    while(children_is_still_alive() || last_program_started == 0) {
         ;
     }
 
@@ -218,6 +219,9 @@ int start_process() {
         timer.it_value = timeout;
         counter = cmd->start_time;
         setitimer(ITIMER_REAL, &timer, NULL);
+    }
+    else {
+        last_program_started = 1;
     }
     // Disable timer. I got some weird segmentation fault with this:
     /*else { 
