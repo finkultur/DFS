@@ -17,7 +17,7 @@
  */
 int get_tile(cpu_set_t *cpus, int *tileAlloc) {
     int best_tile;
-    if (best_tile = get_empty_tile(cpus, tileAlloc) >= -1) {
+    if (best_tile = get_empty_tile(cpus, tileAlloc) >= 0) {
         return best_tile;
     }
     else {
