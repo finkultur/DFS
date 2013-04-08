@@ -58,6 +58,10 @@ struct cmd_list_struct *create_cmd_list(char *file_name)
 	// Read file line by line until EOF:
 	while (fgets(line_buf, BUFFER_SIZE, input_file) != NULL )
 	{
+        // If line is empty or a comment, just read the next line
+        if (line_buf[0] == '#' || line_buf[0] == '\n') {
+            continue;
+        }
 		// Parse read line:
 		if ((new_entry = parse_line(line_buf)) == NULL )
 		{
