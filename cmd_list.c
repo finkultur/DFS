@@ -10,7 +10,7 @@
 #include "cmd_list.h"
 
 // Size of string buffers:
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 256
 // Line token delimiter:
 #define DELIMITER " "
 
