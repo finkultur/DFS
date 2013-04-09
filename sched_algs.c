@@ -14,16 +14,10 @@
 
 /*
  * Returns a suitable tile.
+ *
+ * Tries to get an empty tile, otherwise find the tile with least data cache
+ * write miss rate.
  */
-/*int get_tile(cpu_set_t *cpus, int *tileAlloc) {
-    int best_tile;
-    if (best_tile = get_empty_tile(cpus, tileAlloc) >= 0) {
-        return best_tile;
-    }
-    else {
-        return get_tile_with_min_write_miss_rate(cpus);
-    }
-}*/
 int get_tile(cpu_set_t *cpus, int *tileAlloc) {
     int num_of_cpus = tmc_cpus_count(cpus);
 
