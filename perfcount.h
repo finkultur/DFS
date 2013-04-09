@@ -20,4 +20,4 @@ void clear_perf_counters();
 void setup_counters(int event1, int event2, int event3, int event4);
 void read_counters(int* event1, int* event2, int* event3, int* event4);
 void clear_counters();
-
+int setup_all_counters(cpu_set_t *cpus);

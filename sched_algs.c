@@ -5,6 +5,9 @@
  *
  */
 
+// Just for debugging
+#include <stdio.h>
+
 // Tilera
 #include <tmc/cpus.h>
 #include <tmc/task.h>
@@ -55,7 +58,8 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
     int best_tile = 0;
     float min_value = 1.0;
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    float wr_miss_rate, drd_miss_rate;
+    float wr_miss_rate;
+    //float drd_miss_rate;
 
     for (int i=0;i<num_of_cpus;i++) {
         if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus, i)) < 0) {
@@ -79,6 +83,7 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
                 min_value = wr_miss_rate;
                 best_tile = i;
         }
+        printf("Tile %i: Wr_miss_rate %f, wr_miss %i, wr_cnt %i\n", i, wr_miss_rate, wr_miss, wr_cnt);
     }
     return best_tile;
 }

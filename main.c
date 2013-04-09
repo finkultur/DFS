@@ -21,16 +21,19 @@
 #include "pid_table.h"
 #include "cmd_list.h"
 #include "sched_algs.h"
+#include "perfcount.h"
 
-#define NUM_OF_CPUS 8
+#define NUM_OF_CPUS 16
 #define TABLE_SIZE 8
 
 // RTS handlers:
 void start_handler(int, siginfo_t*, void*);
 void end_handler(int, siginfo_t*, void*);
 
+// Functions that probably shouldn't be defined in main
 int start_process(void);
 int children_is_still_alive(void);
+void print_tileAlloc(void);
 
 // Global values:
 int counter = 0;
@@ -81,6 +84,12 @@ int main(int argc, char *argv[]) {
     printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
     if (tmc_cpus_count(&cpus) < NUM_OF_CPUS) {
         tmc_task_die("Insufficient cpus available.");
+    }
+
+    // Setup all performance counters on every initialized tile
+    if (setup_all_counters(&cpus) != 0) {
+        printf("setup_all_counters failed\n");
+        return 1;
     }
 
     // Initialize pid_table
@@ -134,6 +143,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // This function (usually) prints performance counters & their miss rate
+    get_tile_with_min_write_miss_rate(&cpus);
+
     // Print start, end and total time elapsed.
     long long int end_time = time(NULL);
     printf("Start time was: %lld\n", start_time);
@@ -157,7 +169,7 @@ void start_handler(int signo, siginfo_t *info, void *context) {
 /*
  * Handles SIGCHLD interrupts sent by dying children.
  */
-void end_handler(int signo, siginfo_t *info, void *context)
+/*void end_handler(int signo, siginfo_t *info, void *context)
 {
     int pid;
     pid = wait(NULL);
@@ -170,7 +182,7 @@ void end_handler(int signo, siginfo_t *info, void *context)
     remove_pid(table, pid);
     // Printing from signal handlers is stupid:
     //printf("pid: %d is done.\n", pid);
-}
+}*/
 
 /*
  * Starts all processes with start_time less than or equal to the current
@@ -195,7 +207,6 @@ int start_process() {
             return 1; // Fork failed
         }
         else if (pid == 0) { // Child process
-            
             if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
             }

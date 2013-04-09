@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <arch/cycle.h>
+#include <tmc/cpus.h>
+#include <tmc/task.h>
 
 #include "perfcount.h"
 
@@ -33,3 +35,18 @@ clear_counters()
   __insn_mtspr(SPR_AUX_PERF_COUNT_1, 0);
 }
 
+/*
+ * Setup counters for all tiles in cpu set
+ */ 
+int setup_all_counters(cpu_set_t *cpus) {
+    int num_of_cpus = tmc_cpus_count(cpus);
+    for (int i=0;i<num_of_cpus;i++) {
+        if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus, i)) < 0) {
+            tmc_task_die("failure in 'tmc_set_my_cpu'");
+            return -1;
+        }
+        clear_counters();
+        setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
+    }
+    return 0; 
+}
