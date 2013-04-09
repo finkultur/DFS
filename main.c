@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
 	// RTS actions:
     struct sigaction start_action;
-    struct sigaction end_action;
+    //struct sigaction end_action;
 
     // Save starting time
     long long int start_time = time(NULL);
@@ -103,7 +103,8 @@ int main(int argc, char *argv[]) {
     		|| sigaction(SIGALRM, &start_action, NULL) != 0) {
     	printf("Failed to setup handler for SIGALRM\n");
     }
-
+    
+    /*
     // Init RTS for process termination:
     end_action.sa_handler = NULL;
     end_action.sa_flags = SA_SIGINFO;
@@ -115,23 +116,30 @@ int main(int argc, char *argv[]) {
     	|| sigaction(SIGCHLD, &end_action, NULL) != 0) {
     	printf("Failed to setup handler for SIGCHLD\n");
     }
-
+    */
+    
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
     
-    // Loop "forever", when the last job is done the program exits.
+    // While the last process hasn't started and children is still alive,
+    // reap the dying children.
+    int child_pid;
+    int child_tile_num;
     while(children_is_still_alive() || last_program_started == 0) {
-        ;
+        child_pid = wait(NULL);
+        if (child_pid > 0) {
+            child_tile_num = get_tile_num(table, child_pid);
+            tileAlloc[child_tile_num]--;
+            remove_pid(table, child_pid);
+        }
     }
 
-    // Print time
+    // Print start, end and total time elapsed.
     long long int end_time = time(NULL);
-    printf("Start time is: %lld\n", start_time);
-    printf("End time is: %lld\n", end_time);
-
+    printf("Start time was: %lld\n", start_time);
+    printf("End time was: %lld\n", end_time);
     long long int total_time;
     total_time = end_time - start_time;
-
     printf("Workload finished!\n");
     printf("Time elapsed: %lld\n", total_time);
 

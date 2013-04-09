@@ -15,7 +15,7 @@
 /*
  * Returns a suitable tile.
  */
-int get_tile(cpu_set_t *cpus, int *tileAlloc) {
+/*int get_tile(cpu_set_t *cpus, int *tileAlloc) {
     int best_tile;
     if (best_tile = get_empty_tile(cpus, tileAlloc) >= 0) {
         return best_tile;
@@ -23,6 +23,16 @@ int get_tile(cpu_set_t *cpus, int *tileAlloc) {
     else {
         return get_tile_with_min_write_miss_rate(cpus);
     }
+}*/
+int get_tile(cpu_set_t *cpus, int *tileAlloc) {
+    int num_of_cpus = tmc_cpus_count(cpus);
+
+    for (int i=0;i<num_of_cpus;i++) {
+        if (tileAlloc[i] == 0) {
+            return i;
+        }
+    }
+    return get_tile_with_min_write_miss_rate(cpus);
 }
 
 /*
