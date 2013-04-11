@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sched.h>
+#include <pthread.h>
 
 // Tilera 
 #include <tmc/cpus.h>
@@ -23,7 +24,7 @@
 #include "sched_algs.h"
 #include "perfcount.h"
 
-#define NUM_OF_CPUS 16
+#define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
 
 // RTS handlers:
@@ -38,7 +39,8 @@ void print_tileAlloc(void);
 // Global values:
 int counter = 0;
 pid_table table;
-int tileAlloc[NUM_OF_CPUS];
+int tileAlloc[NUM_OF_CPUS] = {0};
+float wr_miss_rates[NUM_OF_CPUS] = {1.0};
 cmd_list list;
 cpu_set_t cpus;
 int last_program_started = 0;
@@ -57,11 +59,6 @@ int main(int argc, char *argv[]) {
     // Save starting time
     long long int start_time = time(NULL);
     printf("Start time is: %lld\n", start_time);
-
-    // Initialize tileAlloc to zeros, this shouldn't be necessary (?)
-    for (int i=0;i<NUM_OF_CPUS;i++) {
-        tileAlloc[i] = 0;
-    }
 
     // Check command line arguments
     if (argc < 2 || argc > 3) {
@@ -91,6 +88,15 @@ int main(int argc, char *argv[]) {
         printf("setup_all_counters failed\n");
         return 1;
     }
+    
+    // Define a struct containing data to be sent to thread
+    struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
+    data->cpus = &cpus;
+    data->wr_miss_rates = wr_miss_rates;
+
+    // Start the threads that polls the PMC registers
+    pthread_t poll_pmcs_thread;
+    pthread_create(&poll_pmcs_thread, NULL, poll_pmcs, (void*)data);
 
     // Initialize pid_table
     table = create_pid_table(TABLE_SIZE);
@@ -113,20 +119,6 @@ int main(int argc, char *argv[]) {
     	printf("Failed to setup handler for SIGALRM\n");
     }
     
-    /*
-    // Init RTS for process termination:
-    end_action.sa_handler = NULL;
-    end_action.sa_flags = SA_SIGINFO;
-    end_action.sa_sigaction = end_handler;
-    // Install handler (blocking SIGCHLD/SIGALRM during handler execution):
-    if (sigemptyset(&end_action.sa_mask) != 0
-    	|| sigaddset(&end_action.sa_mask, SIGCHLD) != 0
-    	|| sigaddset(&end_action.sa_mask, SIGALRM) != 0
-    	|| sigaction(SIGCHLD, &end_action, NULL) != 0) {
-    	printf("Failed to setup handler for SIGCHLD\n");
-    }
-    */
-    
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
     
@@ -135,6 +127,13 @@ int main(int argc, char *argv[]) {
     int child_pid;
     int child_tile_num;
     while(children_is_still_alive() || last_program_started == 0) {
+
+        // Print reported miss rate
+        for (int i=0;i<NUM_OF_CPUS;i++) {
+            printf("tile %i's miss rate is %f\n", i, wr_miss_rates[i]);
+        }
+
+        // Reap child 
         child_pid = wait(NULL);
         if (child_pid > 0) {
             child_tile_num = get_tile_num(table, child_pid);
@@ -167,24 +166,6 @@ void start_handler(int signo, siginfo_t *info, void *context) {
 }
 
 /*
- * Handles SIGCHLD interrupts sent by dying children.
- */
-/*void end_handler(int signo, siginfo_t *info, void *context)
-{
-    int pid;
-    pid = wait(NULL);
-
-    // Get what tile the pid ran on
-    int tile_num = get_tile_num(table, pid);
-    // Decrement the number of processes on that tile
-    tileAlloc[tile_num]--;
-    // Remove pid from pid_table
-    remove_pid(table, pid);
-    // Printing from signal handlers is stupid:
-    //printf("pid: %d is done.\n", pid);
-}*/
-
-/*
  * Starts all processes with start_time less than or equal to the current
  * time/counter. Derps with the pid table, allocates a specific tile
  * to the process(es) and forks child process(es). Also keeps track of the
@@ -198,9 +179,10 @@ int start_process() {
  
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
-        int tile_num = get_tile(&cpus, tileAlloc);
+        int tile_num = get_tile(&cpus, tileAlloc, wr_miss_rates);
         // Increment the number of processes running on that tile.
         tileAlloc[tile_num]++;
+        print_tileAlloc();
 
         int pid = fork();
         if (pid < 0) {
@@ -211,12 +193,13 @@ int start_process() {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
             }
             
-            /*   
+               
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
             printf("I am pid #%i and I am on physical tile #%i, logical tile #%i\n", 
                    mypid, mycurcpu, tile_num);
-            */
+                        
+
             chdir(cmd->dir);
             int status = execv(cmd->cmd, (char **)cmd->argv);
             printf("execvp failed with status %d\n", status);

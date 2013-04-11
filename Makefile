@@ -1,7 +1,7 @@
 CC=gcc
 TILECC=/opt/tilepro/bin/tile-cc
 CCFLAGS= -Wall #-std=c99
-LNFLAGS= -ltmc
+LNFLAGS= -ltmc -pthread
 
 tilera: main.o pid_table.o cmd_list.o sched_algs.o perfcount.o
 	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o pid_table.o cmd_list.o sched_algs.o perfcount.o

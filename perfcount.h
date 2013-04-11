@@ -16,8 +16,17 @@
 #define LOCAL_DRD_MISS 0x34
 #define LOCAL_DRD_CNT 0x28
 
+#ifndef PERFCOUNT_H
+#define PERFCOUNT_H
+struct poll_thread_struct {
+    float *wr_miss_rates;
+    cpu_set_t *cpus;
+};
+#endif
+
 void clear_perf_counters();
 void setup_counters(int event1, int event2, int event3, int event4);
 void read_counters(int* event1, int* event2, int* event3, int* event4);
-void clear_counters();
+void clear_counters(void);
 int setup_all_counters(cpu_set_t *cpus);
+void *poll_pmcs(void *float_array);

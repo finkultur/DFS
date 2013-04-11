@@ -21,7 +21,7 @@
  * Tries to get an empty tile, otherwise find the tile with least data cache
  * write miss rate.
  */
-int get_tile(cpu_set_t *cpus, int *tileAlloc) {
+int get_tile(cpu_set_t *cpus, int *tileAlloc, float *wr_miss_rates) {
     int num_of_cpus = tmc_cpus_count(cpus);
 
     for (int i=0;i<num_of_cpus;i++) {
@@ -29,7 +29,8 @@ int get_tile(cpu_set_t *cpus, int *tileAlloc) {
             return i;
         }
     }
-    return get_tile_with_min_write_miss_rate(cpus);
+    //return get_tile_with_min_write_miss_rate(cpus);
+    return get_tile_from_wr_miss_array(cpus, wr_miss_rates);
 }
 
 /*
@@ -84,6 +85,24 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
                 best_tile = i;
         }
         printf("Tile %i: Wr_miss_rate %f, wr_miss %i, wr_cnt %i\n", i, wr_miss_rate, wr_miss, wr_cnt);
+    }
+    return best_tile;
+}
+
+/**
+ * Scans the array updated by the poll_pmc-thread for the lowest
+ * write cache miss rate and returns that tile.
+ */
+int get_tile_from_wr_miss_array(cpu_set_t *cpus, float *wr_miss_rates) {
+    int num_of_cpus = tmc_cpus_count(cpus);
+    int best_tile = 0;
+    float min_val = 1.0;
+
+    for (int i=0;i<num_of_cpus;i++) {
+        if (wr_miss_rates[i] < min_val) {
+            min_val = wr_miss_rates[i];
+            best_tile = i;
+        }
     }
     return best_tile;
 }
