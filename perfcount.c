@@ -60,9 +60,11 @@ int setup_all_counters(cpu_set_t *cpus) {
  * "Thread-function" that polls the performance registers every 
  * POLLING_INTERVAL seconds.
  *
- * Just takes an array of floats where it saves the cache write miss rate, 
- * it should be extended to take a struct containing two arrays (and possibly 
- * other information as well). 
+ * Takes a struct containing the needed arguments:
+ * - a pointer to a cpu_set_t
+ * - an array of floats where it saves write miss rates
+ * - an array of floats where it saves read miss rates
+ *
  */
 void *poll_pmcs(void *struct_with_all_args) {
     cpu_set_t *cpus;
@@ -73,7 +75,7 @@ void *poll_pmcs(void *struct_with_all_args) {
     data = (struct poll_thread_struct *) struct_with_all_args;
     cpus = data->cpus;
     float *wr_miss_rates = data->wr_miss_rates;
-
+    float *drd_miss_rates = data->drd_miss_rates;
     num_of_cpus = tmc_cpus_count(cpus);
 
     while(1) {
@@ -85,6 +87,9 @@ void *poll_pmcs(void *struct_with_all_args) {
             read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
             if (wr_cnt != 0) {
                 wr_miss_rates[i] = ((float) wr_miss) / wr_cnt;
+            }
+            if (drd_cnt != 0) {
+                drd_miss_rates[i] = ((float) drd_miss) / drd_cnt;
             }
         }
         sleep(POLLING_INTERVAL);

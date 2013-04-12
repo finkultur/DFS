@@ -41,6 +41,7 @@ int counter = 0;
 pid_table table;
 int tileAlloc[NUM_OF_CPUS] = {0};
 float wr_miss_rates[NUM_OF_CPUS] = {1.0};
+float drd_miss_rates[NUM_OF_CPUS] = {1.0};
 cmd_list list;
 cpu_set_t cpus;
 int last_program_started = 0;
@@ -93,6 +94,7 @@ int main(int argc, char *argv[]) {
     struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
     data->cpus = &cpus;
     data->wr_miss_rates = wr_miss_rates;
+    data->drd_miss_rates = drd_miss_rates;
 
     // Start the threads that polls the PMC registers
     pthread_t poll_pmcs_thread;
