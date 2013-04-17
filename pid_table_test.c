@@ -1,13 +1,12 @@
 /* pid_table_test.c */
 
-#include "pid_table.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "pid_table.h"
 
-static const int table_size = 8;
-static const int num_entries = 8;
+static const int num_entries = 16;
 static const int num_tiles = 64;
 
 // Performs a test of the pid_table module:
@@ -16,13 +15,14 @@ int main(int argc, char *argv[])
     int n, pid, tile_num;
     pid_t pids[num_entries];
     pid_table table;
+
     srand(time(NULL ));
     // Create table:
     printf("creating table...");
-    table = create_pid_table(table_size);
+    table = create_pid_table(4, 2);
     printf("done\n");
-    printf("table size: %zu\n", get_size(table));
-    printf("table count: %i\n", get_count(table));
+//    printf("table size: %zu\n", get_size(table));
+//    printf("table count: %i\n", get_count(table));
     print_table(table);
     // Insert elements
     for (n = 0; n < num_entries; n++)
@@ -39,25 +39,24 @@ int main(int argc, char *argv[])
         {
             printf("[failed]\n");
         }
-
-        printf("table count: %i\n", get_count(table));
+        //printf("table count: %i\n", get_count(table));
     }
     print_table(table);
-    for (n = 0; n < num_entries; n++)
-    {
-        tile_num = rand() % 64;
-        printf("changing pid: %i tile_num: %i -> %i ", pids[n],
-                get_tile_num(table, pids[n]), tile_num);
-        if (set_tile_num(table, pids[n], tile_num) == 0)
-        {
-            printf("[ok]\n");
-        }
-        else
-        {
-            printf("[failed]\n");
-        }
-    }
-    print_table(table);
+//    for (n = 0; n < num_entries; n++)
+//    {
+//        tile_num = rand() % 64;
+//        printf("changing pid: %i tile_num: %i -> %i ", pids[n],
+//                get_tile_num(table, pids[n]), tile_num);
+//        if (set_tile_num(table, pids[n], tile_num) == 0)
+//        {
+//            printf("[ok]\n");
+//        }
+//        else
+//        {
+//            printf("[failed]\n");
+//        }
+//    }
+//    print_table(table);
     // Remove elements:
     for (n = 0; n < num_entries; n++)
     {
@@ -70,7 +69,7 @@ int main(int argc, char *argv[])
         {
             printf("[failed]\n");
         }
-        printf("table count: %i\n", get_count(table));
+//        printf("table count: %i\n", get_count(table));
     }
     print_table(table);
     for (n = 0; n < num_entries; n++)
@@ -88,7 +87,7 @@ int main(int argc, char *argv[])
             printf("[failed]\n");
         }
 
-        printf("table count: %i\n", get_count(table));
+//        printf("table count: %i\n", get_count(table));
     }
     print_table(table);
     printf("destroying table...");
