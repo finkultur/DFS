@@ -6,7 +6,7 @@
 #include <time.h>
 #include "pid_table.h"
 
-static const int num_entries = 16;
+static const int num_entries = 100;
 static const int num_tiles = 64;
 
 // Performs a test of the pid_table module:
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     printf("done\n");
 //    printf("table size: %zu\n", get_size(table));
 //    printf("table count: %i\n", get_count(table));
-    print_table(table);
+//    print_table(table);
     // Insert elements
     for (n = 0; n < num_entries; n++)
     {
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
         }
         //printf("table count: %i\n", get_count(table));
     }
-    print_table(table);
+//    print_table(table);
 //    for (n = 0; n < num_entries; n++)
 //    {
 //        tile_num = rand() % 64;
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
         }
 //        printf("table count: %i\n", get_count(table));
     }
-    print_table(table);
+//    print_table(table);
     for (n = 0; n < num_entries; n++)
     {
         pid = rand();
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 
 //        printf("table count: %i\n", get_count(table));
     }
-    print_table(table);
+//    print_table(table);
     printf("destroying table...");
     destroy_pid_table(table);
     printf("done\n");

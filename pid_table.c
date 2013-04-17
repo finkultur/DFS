@@ -211,7 +211,8 @@ static int add_buckets(struct table_struct *table, int table_index)
 	struct entry_struct *new_buckets;
 
 	new_bucket_count = 2 * table->index[table_index].bucket_count;
-	new_buckets = realloc(table->index[table_index].buckets, new_bucket_count);
+	new_buckets = realloc(table->index[table_index].buckets,
+			new_bucket_count * sizeof(struct entry_struct));
 	if (new_buckets == NULL )
 	{
 		return -1;
