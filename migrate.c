@@ -18,6 +18,7 @@
 
 #define POLLING_INTERVAL 10
 #define CONTENTION_LIMIT 0.58 // Totally arbitrary
+#define READS_BEFORE_RESET 3 // Reset counters every THIS*POLLING_INTERVAL seconds
 
 cpu_set_t *cpus;
 int num_of_cpus;
@@ -60,6 +61,7 @@ void *poll_pmcs(void *struct_with_all_args) {
     }
 
 
+    int reset = READS_BEFORE_RESET;
     // Read counters and update table every X seconds
     while(1) {
         for(int i=0;i<num_of_cpus;i++) {
@@ -70,10 +72,10 @@ void *poll_pmcs(void *struct_with_all_args) {
             }
             // Read counters
             read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-            //physical_tile = tmc_cpus_get_my_current_cpu();
-            printf("Logical/Physical Tile %i/%i: 
-                   wr_miss %i, wr_cnt %i, drd_miss %i, drd_cnt %i\n",
-                   i, physical_tile, wr_miss, wr_cnt, drd_miss, drd_cnt);
+            physical_tile = tmc_cpus_get_my_current_cpu();
+            printf("Logical/Physical Tile %i/%i:", i, physical_tile); 
+            printf("wr_miss %i, wr_cnt %i, drd_miss %i, drd_cnt %i\n",
+                   wr_miss, wr_cnt, drd_miss, drd_cnt);
             if (wr_cnt != 0) {
                 write_miss_rates[i] = ((float) wr_miss) / wr_cnt;
                 // If value is over CONTENTION_LIMIT, "cool down" tile
@@ -85,6 +87,13 @@ void *poll_pmcs(void *struct_with_all_args) {
             if (drd_cnt != 0) {
                 read_miss_rates[i] = ((float) drd_miss) / drd_cnt;
             }
+        }
+        // We reset all performance counters every x iteration
+        reset--;
+        if (reset == 0) {
+            printf("Resetting performance counters.\n");
+            clear_counters();
+            reset = READS_BEFORE_RESET;
         }
         print_wr_miss_rates();
         sleep(POLLING_INTERVAL);
