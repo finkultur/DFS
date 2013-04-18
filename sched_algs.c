@@ -22,9 +22,7 @@
  * write miss rate.
  */
 int get_tile(cpu_set_t *cpus, int *tileAlloc, float *wr_miss_rates) {
-    printf("in get_tile\n");
     int num_of_cpus = tmc_cpus_count(cpus);
-    printf("\n\nNUMBER OF CPUS: %i\n\n", num_of_cpus);
     printf("get_tile: got cpu count %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
     int empty_tile = get_empty_tile(num_of_cpus, tileAlloc);
