@@ -80,8 +80,9 @@ int main(int argc, char *argv[]) {
         tmc_task_die("Failure in 'tmc_cpus_get_my_affinity()'.");
     }
     printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
-    if (tmc_cpus_count(&cpus) < NUM_OF_CPUS) {
-        tmc_task_die("Insufficient cpus available.");
+    if (tmc_cpus_count(&cpus) != NUM_OF_CPUS) {
+//        tmc_task_die("Insufficient cpus available.");
+        tmc_task_die("Got wrong number of cpus");
     }
 
     // Setup all performance counters on every initialized tile
