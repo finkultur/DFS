@@ -17,7 +17,7 @@
 #include "migrate.h"
 
 #define POLLING_INTERVAL 10
-#define CONTENTION_LIMIT 0.08 // Totally arbitrary
+#define CONTENTION_LIMIT 0.58 // Totally arbitrary
 
 cpu_set_t *cpus;
 int num_of_cpus;
@@ -34,7 +34,8 @@ int *pids_per_tile;
  * - a pointer to a cpu_set_t
  * - an array of floats where it saves write miss rates
  * - an array of floats where it saves read miss rates
- *
+ * - an array of ints with pids per tile
+ * - a pid_table struct
  */
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
@@ -50,7 +51,13 @@ void *poll_pmcs(void *struct_with_all_args) {
     cpus = data->cpus;
 
     num_of_cpus = tmc_cpus_count(cpus);
-    printf("\n\nNUMBER OF CPUS: %i\n\n", num_of_cpus);
+    printf("\nNUMBER OF CPUS: %i\n", num_of_cpus);
+
+    // Setup all performance counters on every initialized tile
+    if (setup_all_counters(cpus) != 0) {
+        printf("setup_all_counters failed\n");
+        return (void *) -1;
+    }
 
 
     // Read counters and update table every X seconds
@@ -61,10 +68,11 @@ void *poll_pmcs(void *struct_with_all_args) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
                 return (void*) -1;
             }
-            physical_tile = tmc_cpus_get_my_current_cpu();
             // Read counters
             read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-            printf("Logical/Physical Tile %i/%i: wr_miss %i, wr_cnt %i, drd_miss %i, drd_cnt %i\n",
+            //physical_tile = tmc_cpus_get_my_current_cpu();
+            printf("Logical/Physical Tile %i/%i: 
+                   wr_miss %i, wr_cnt %i, drd_miss %i, drd_cnt %i\n",
                    i, physical_tile, wr_miss, wr_cnt, drd_miss, drd_cnt);
             if (wr_cnt != 0) {
                 write_miss_rates[i] = ((float) wr_miss) / wr_cnt;
@@ -78,7 +86,6 @@ void *poll_pmcs(void *struct_with_all_args) {
                 read_miss_rates[i] = ((float) drd_miss) / drd_cnt;
             }
         }
-        print_table(pidtable);
         print_wr_miss_rates();
         sleep(POLLING_INTERVAL);
     }
@@ -101,8 +108,10 @@ void print_wr_miss_rates() {
  */
 void cool_down_tile(int tilenum) {
     int pid_to_move = get_first_pid_from_tile(tilenum);
-    int newtile = get_tile(cpus, pids_per_tile, write_miss_rates);
-    migrate_process(pid_to_move, newtile);
+    if (pid_to_move > 0) {
+        int newtile = get_tile(cpus, pids_per_tile, write_miss_rates);
+        migrate_process(pid_to_move, newtile);
+    }
 }
 
 /*

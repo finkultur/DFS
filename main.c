@@ -85,11 +85,13 @@ int main(int argc, char *argv[]) {
         tmc_task_die("Got wrong number of cpus");
     }
 
+
+    // NOW DONE IN POLL_PMC THREAD!
     // Setup all performance counters on every initialized tile
-    if (setup_all_counters(&cpus) != 0) {
+    /*if (setup_all_counters(&cpus) != 0) {
         printf("setup_all_counters failed\n");
         return 1;
-    }
+    }*/
 
     for (int i=0;i<NUM_OF_CPUS;i++) {
         tileAlloc[i] = 0;
