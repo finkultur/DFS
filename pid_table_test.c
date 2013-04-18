@@ -91,6 +91,12 @@ int main(int argc, char *argv[])
         printf("table count: %i\n", get_count(table));
     }
     print_table(table);
+
+    printf("try get pid that doesn't exist\n");
+    pid = rand();
+    int res = get_tile_num(table, pid);
+    printf("result was %i\n", res);
+
     printf("destroying table...");
     destroy_pid_table(table);
     printf("done\n");

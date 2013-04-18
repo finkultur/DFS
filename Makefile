@@ -3,8 +3,8 @@ TILECC=/opt/tilepro/bin/tile-cc
 CCFLAGS= -Wall #-std=c99
 LNFLAGS= -ltmc -pthread
 
-tilera: main.o pid_table.o cmd_list.o sched_algs.o perfcount.o
-	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o pid_table.o cmd_list.o sched_algs.o perfcount.o
+tilera: main.o pid_table.o cmd_list.o sched_algs.o perfcount.o migrate.o
+	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o pid_table.o cmd_list.o sched_algs.o perfcount.o migrate.o
 
 main.o: main.c
 	$(TILECC) $(CCFLAGS) -c main.c main.o
@@ -20,3 +20,6 @@ sched_algs.o: sched_algs.c
 
 perfcount.o: perfcount.c perfcount.h
 	$(TILECC) $(CCFLAGS) -c perfcount.c perfcount.o
+
+migrate.o: migrate.c migrate.h
+	$(TILECC) $(CCFLAGS) -c migrate.c migrate.o

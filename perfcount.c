@@ -11,9 +11,8 @@
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 
+#include "pid_table.h"
 #include "perfcount.h"
-
-#define POLLING_INTERVAL 5
 
 void
 setup_counters(int event1, int event2, int event3, int event4)
@@ -66,7 +65,7 @@ int setup_all_counters(cpu_set_t *cpus) {
  * - an array of floats where it saves read miss rates
  *
  */
-void *poll_pmcs(void *struct_with_all_args) {
+/*void *poll_pmcs(void *struct_with_all_args) {
     cpu_set_t *cpus;
     int num_of_cpus;
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
@@ -77,6 +76,9 @@ void *poll_pmcs(void *struct_with_all_args) {
     float *wr_miss_rates = data->wr_miss_rates;
     float *drd_miss_rates = data->drd_miss_rates;
     num_of_cpus = tmc_cpus_count(cpus);
+
+    pid_table table = data->pidtable;
+    int *tileAlloc = data->tileAlloc; 
 
     while(1) {
         for(int i=0;i<num_of_cpus;i++) {
@@ -95,3 +97,20 @@ void *poll_pmcs(void *struct_with_all_args) {
         sleep(POLLING_INTERVAL);
     }
 }
+
+int migrate_process(cpu_set_t *cpus, pid_table table, int *tileAlloc, int pid, int oldtile, int newtile) {
+    //int oldtile = get_tile_num(table, pid);
+
+    // set pid to new cpu
+    tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus, newtile)), pid);
+
+    // Reorder pid_table
+    set_tile_num(table, pid, newtile);
+
+    // Reorder tile allocation array
+    tileAlloc[oldtile]--;
+    tileAlloc[newtile]++;
+
+    return 0;
+}
+*/

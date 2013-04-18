@@ -22,30 +22,59 @@
  * write miss rate.
  */
 int get_tile(cpu_set_t *cpus, int *tileAlloc, float *wr_miss_rates) {
+    printf("in get_tile\n");
     int num_of_cpus = tmc_cpus_count(cpus);
+    printf("\n\nNUMBER OF CPUS: %i\n\n", num_of_cpus);
+    printf("get_tile: got cpu count %i\n", num_of_cpus);
+    // If a tile it empty, its probably the most suitable tile...
+    int empty_tile = get_empty_tile(num_of_cpus, tileAlloc);
+    if (empty_tile >= 0) {
+        return empty_tile;
+    }
 
-    for (int i=0;i<num_of_cpus;i++) {
-        if (tileAlloc[i] == 0) {
-            return i;
+    // Otherwise, calculate the best tile through multiplying the tile's miss
+    // rate by the number of processes running on that tile. 
+    int best_tile = 0;
+    float min_val = tileAlloc[0] * wr_miss_rates[0];
+    int temp_val;
+    for (int i=1;i<num_of_cpus;i++) {
+        temp_val = tileAlloc[i] * wr_miss_rates[i]; 
+        if (temp_val < min_val) {
+            best_tile = i;
+            min_val = temp_val; 
         }
     }
-    //return get_tile_with_min_write_miss_rate(cpus);
-    return get_tile_from_wr_miss_array(cpus, wr_miss_rates);
+    // Return the tile with the lowest value (calculated above)
+    return best_tile;
 }
 
 /*
- * Tries to get an empty tile, given a pointer to a set of cpus.
+ * Returns an empty tile (if there is one).
  * Returns -1 if no tile is empty.
  */
-int get_empty_tile(cpu_set_t *cpus, int *tileAlloc) {
-    int num_of_cpus = tmc_cpus_count(cpus);
-
+int get_empty_tile(int num_of_cpus, int *tileAlloc) {
     for (int i=0;i<num_of_cpus;i++) {
         if (tileAlloc[i] == 0) {
             return i;
         }
     }
     return -1;
+}
+
+/*
+ * Returns the tile with least processes running.
+ */
+int get_least_occupied_tile(int num_of_cpus, int *tileAlloc) {
+    int best_tile = 0;
+    int min_val = tileAlloc[0];
+
+    for (int i=1;i<num_of_cpus;i++) {
+        if (tileAlloc[i] < min_val) {
+            best_tile = i;
+            min_val = tileAlloc[i];
+        }
+    }
+    return best_tile;
 }
 
 /*
@@ -93,8 +122,7 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
  * Scans the array updated by the poll_pmc-thread for the lowest
  * write cache miss rate and returns that tile.
  */
-int get_tile_from_wr_miss_array(cpu_set_t *cpus, float *wr_miss_rates) {
-    int num_of_cpus = tmc_cpus_count(cpus);
+int get_tile_from_wr_miss_array(int num_of_cpus, float *wr_miss_rates) {
     int best_tile = 0;
     float min_val = 1.0;
 

@@ -22,6 +22,7 @@
 #include "pid_table.h"
 #include "cmd_list.h"
 #include "sched_algs.h"
+#include "migrate.h"
 #include "perfcount.h"
 
 #define NUM_OF_CPUS 8
@@ -60,7 +61,6 @@ int main(int argc, char *argv[]) {
     // Save starting time
     long long int start_time = time(NULL);
     printf("Start time is: %lld\n", start_time);
-
     // Check command line arguments
     if (argc < 2 || argc > 3) {
         printf("usage: %s <inputfile> [logfile]\n", argv[0]);
@@ -89,25 +89,30 @@ int main(int argc, char *argv[]) {
         printf("setup_all_counters failed\n");
         return 1;
     }
-    
-    // Define a struct containing data to be sent to thread
-    struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
-    data->cpus = &cpus;
-    data->wr_miss_rates = wr_miss_rates;
-    data->drd_miss_rates = drd_miss_rates;
 
-    // Start the threads that polls the PMC registers
-    pthread_t poll_pmcs_thread;
-    pthread_create(&poll_pmcs_thread, NULL, poll_pmcs, (void*)data);
-
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        tileAlloc[i] = 0;
+    }
+   
     // Initialize pid_table
     table = create_pid_table(TABLE_SIZE);
-
     // Parse the file and set next to first entry in file.
     if ((list = create_cmd_list(argv[1])) == NULL) {
         printf("Failed to create command list from file: %s\n", argv[1]);
         return 1;
     }
+ 
+    // Define a struct containing data to be sent to thread
+    struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
+    data->tileAlloc = tileAlloc;
+    data->pidtable = table;
+    data->cpus = &cpus;
+    data->wr_miss_rates = wr_miss_rates;
+    data->drd_miss_rates = drd_miss_rates;
+ 
+    // Start the threads that polls the PMC registers
+    pthread_t poll_pmcs_thread;
+    pthread_create(&poll_pmcs_thread, NULL, poll_pmcs, (void*)data);
 
     // Init RTS for process start:
     start_action.sa_handler = NULL;
@@ -131,9 +136,9 @@ int main(int argc, char *argv[]) {
     while(children_is_still_alive() || last_program_started == 0) {
 
         // Print reported miss rate
-        for (int i=0;i<NUM_OF_CPUS;i++) {
+        /*for (int i=0;i<NUM_OF_CPUS;i++) {
             printf("tile %i's miss rate is %f\n", i, wr_miss_rates[i]);
-        }
+        }*/
 
         // Reap child 
         child_pid = wait(NULL);
@@ -198,8 +203,8 @@ int start_process() {
                
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
-            printf("I am pid #%i and I am on physical tile #%i, logical tile #%i\n", 
-                   mypid, mycurcpu, tile_num);
+            printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, wr_miss_rate: %f\n", 
+                   mypid, mycurcpu, tile_num, tileAlloc[tile_num], wr_miss_rates[tile_num]);
                         
 
             chdir(cmd->dir);
@@ -262,4 +267,5 @@ int children_is_still_alive() {
         }
     }
     return 0;
-} 
+}
+
