@@ -18,9 +18,9 @@ int main(int argc, char *argv[])
 
     srand(time(NULL ));
     // Create table:
-    printf("creating table...");
-    table = create_pid_table(4, 2);
-    printf("done\n");
+//    printf("creating table...");
+    table = create_pid_table(2, 1);
+//    printf("done\n");
 //    printf("table size: %zu\n", get_size(table));
 //    printf("table count: %i\n", get_count(table));
 //    print_table(table);
@@ -30,14 +30,14 @@ int main(int argc, char *argv[])
         pid = rand();
         pids[n] = pid;
         tile_num = rand() % num_tiles;
-        printf("adding pid: %i tile_num: %i) ", pid, tile_num);
+//        printf("adding pid: %i tile_num: %i) ", pid, tile_num);
         if (add_pid(table, pid, tile_num) == 0)
         {
-            printf("[ok]\n");
+//            printf("[ok]\n");
         }
         else
         {
-            printf("[failed]\n");
+//            printf("[failed]\n");
         }
         //printf("table count: %i\n", get_count(table));
     }
@@ -58,40 +58,40 @@ int main(int argc, char *argv[])
 //    }
 //    print_table(table);
     // Remove elements:
-    for (n = 0; n < num_entries; n++)
-    {
-        printf("removing pid: %i ", pids[n]);
-        if (remove_pid(table, pids[n]) == 0)
-        {
-            printf("[ok]\n");
-        }
-        else
-        {
-            printf("[failed]\n");
-        }
-//        printf("table count: %i\n", get_count(table));
-    }
+//    for (n = 0; n < num_entries; n++)
+//    {
+////        printf("removing pid: %i ", pids[n]);
+//        if (remove_pid(table, pids[n]) == 0)
+//        {
+////            printf("[ok]\n");
+//        }
+//        else
+//        {
+////            printf("[failed]\n");
+//        }
+////        printf("table count: %i\n", get_count(table));
+//    }
 //    print_table(table);
-    for (n = 0; n < num_entries; n++)
-    {
-        pid = rand();
-        pids[n] = pid;
-        tile_num = rand() % num_tiles;
-        printf("adding pid: %i tile_num: %i) ", pid, tile_num);
-        if (add_pid(table, pid, tile_num) == 0)
-        {
-            printf("[ok]\n");
-        }
-        else
-        {
-            printf("[failed]\n");
-        }
-
-//        printf("table count: %i\n", get_count(table));
-    }
+//    for (n = 0; n < num_entries; n++)
+//    {
+//        pid = rand();
+//        pids[n] = pid;
+//        tile_num = rand() % num_tiles;
+////        printf("adding pid: %i tile_num: %i) ", pid, tile_num);
+//        if (add_pid(table, pid, tile_num) == 0)
+//        {
+////            printf("[ok]\n");
+//        }
+//        else
+//        {
+////            printf("[failed]\n");
+//        }
+//
+////        printf("table count: %i\n", get_count(table));
+//    }
 //    print_table(table);
-    printf("destroying table...");
+//    printf("destroying table...");
     destroy_pid_table(table);
-    printf("done\n");
+//    printf("done\n");
     return 0;
 }
