@@ -334,7 +334,7 @@ static int grow_bucket_vector(struct table_struct *table, int table_index)
 
 	// Check if bucket vector should be grown (full), otherwise return:
 	if (table->index[table_index].entry_count
-			!= table->index[table_index].bucket_count)
+			< table->index[table_index].bucket_count)
 	{
 		return 0;
 	}
@@ -362,7 +362,7 @@ static int shrink_bucket_vector(pid_table table, int table_index)
 	// Check if bucket vector size should be shrunk, otherwise return:
 	if (table->index[table_index].bucket_count <= table->min_buckets
 			|| table->index[table_index].entry_count
-					> (table->index[table_index].bucket_count / 4))
+					>= (table->index[table_index].bucket_count / 4))
 	{
 		return 0;
 	}
@@ -383,38 +383,4 @@ static int shrink_bucket_vector(pid_table table, int table_index)
 	table->index[table_index].bucket_count = new_bucket_count;
 	table->index[table_index].buckets = new_buckets;
 	return 0;
-}
-
-// DEBUG
-// Prints table to standard output:
-void print_table(pid_table table)
-{
-	int table_index, bucket_index, entry_count, pid, cpu;
-
-	printf("printing table:\n");
-	for (table_index = 0; table_index < table->index_size; table_index++)
-	{
-		entry_count = table->index[table_index].entry_count;
-		if (entry_count == 0)
-		{
-			printf("index[%i] (0): empty\n", table_index);
-		}
-		else
-		{
-			printf("index[%i] (%i): ", table_index, entry_count);
-			for (bucket_index = 0; bucket_index < entry_count; bucket_index++)
-			{
-				pid = table->index[table_index].buckets[bucket_index].pid;
-				cpu = table->index[table_index].buckets[bucket_index].cpu;
-				if (bucket_index < entry_count - 1)
-				{
-					printf("(pid: %i , cpu: %i) -> ", pid, cpu);
-				}
-				else
-				{
-					printf("(pid: %i , cpu: %i)\n", pid, cpu);
-				}
-			}
-		}
-	}
 }

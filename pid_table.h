@@ -48,7 +48,4 @@ int get_cpu(pid_table table, pid_t pid);
  * On success 0 is returned, otherwise -1. */
 int set_cpu(pid_table table, pid_t pid, unsigned int cpu);
 
-// FOR DEBUG:
-void print_table(pid_table table);
-
 #endif /* _PID_TABLE_H */

@@ -5,9 +5,9 @@
 #include <time.h>
 #include "pid_table.h"
 
-static const int index_size = 4;
-static const int bucket_count = 1;
-static const int num_entry = 8;
+static const int index_size = 100;
+static const int bucket_count = 10;
+static const int num_entry = 100000;
 static const int num_cpu = 64;
 
 // Performs a test of the pid_table module:
@@ -18,9 +18,14 @@ int main(int argc, char *argv[])
 	pid_table table;
 
 	// Create table:
-	printf("creating table index: %i buckets: %i\n", index_size, bucket_count);
+	printf("creating pid_table index size: %i buckets: %i\n", index_size, bucket_count);
 	table = create_pid_table(index_size, bucket_count);
-	printf("table created\n");
+	if (table == NULL)
+	{
+		printf("failed!\n");
+		return 1;
+	}
+	printf("OK!\n");
 	// Seed rand():
 	srand(time(NULL ));
 	// Add entries:
@@ -30,28 +35,37 @@ int main(int argc, char *argv[])
 		pid = rand();
 		pids[n] = pid;
 		cpu = rand() % num_cpu;
-		add_pid(table, pid, cpu);
+		if (add_pid(table, pid, cpu) != 0)
+		{
+			printf("failed!\n");
+			return 1;
+		}
 	}
-	printf("adding complete\n");
-	print_table(table);
+	printf("OK!\n");
+	printf("switching all cpus\n");
 	for (n = 0; n < num_entry; n++)
 	{
 		new_cpu = rand() % 64;
-		printf("changing pid: %i cpu: %i -> %i\n", pids[n],
-				get_cpu(table, pids[n]), new_cpu);
-		set_cpu(table, pids[n], new_cpu);
+		if (set_cpu(table, pids[n], new_cpu) != 0)
+		{
+			printf("failed!\n");
+			return 1;
+		}
 	}
-	print_table(table);
-//	 Remove elements:
-	printf("removing entries\n");
+	printf("OK!\n");
+	// Remove elements:
+	printf("removing each entry\n");
 	for (n = 0; n < num_entry; n++)
 	{
-		remove_pid(table, pids[n]);
+		if (remove_pid(table, pids[n]) != 0)
+		{
+			printf("failed!\n");
+			return 1;
+		}
 	}
-	printf("remove complete\n");
-	print_table(table);
+	printf("OK!\n");
 	printf("destroying table\n");
 	destroy_pid_table(table);
-	printf("table destroyed\n");
+	printf("OK!\n");
 	return 0;
 }
