@@ -4,11 +4,13 @@
  * The table is indexed by a simple value calculated from the process ID modulo
  * the size of the hash index.
  * To improve the runtime execution performance, the data buckets on each index
- * are implemented with a dynamically growing vector. When creating a table, it
+ * are implemented with a dynamically sized vector. When creating a table, it
  * is therefore important to consider the initial size of both the hash index
  * and the data bucket vectors. These values should be properly adjusted to
  * ensure that the table will fit the expected number of elements in an
  * effective manner.
+ * To further improve performance, especially targeting lookup speed, the data
+ * buckets are kept sorted (by process ID) to allow binary searching.
  */
 
 #ifndef _PID_TABLE_H
@@ -17,10 +19,10 @@
 #include <unistd.h>
 
 /* Each table instance is represented by a table_struct. */
-struct table_struct;
+struct pid_table_struct;
 
 /* Typedef for a user handle to a table instance (table pointer). */
-typedef struct table_struct *pid_table;
+typedef struct pid_table_struct *pid_table;
 
 /* Allocates a new table with the specified sizes for the hash index and the
  * data bucket vectors.
