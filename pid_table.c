@@ -26,15 +26,16 @@ struct index_struct
 };
 
 /* A pid_table instance is represented by the table_struct. This data type
- * contains the hash index vector and the size of the index. */
+ * contains the hash index vector and the size of the index. It also the
+ * minimum number of buckets as specified on table creation. */
 struct table_struct
 {
 	size_t index_size;
-	size_t min_bucket_size;
+	size_t min_buckets;
 	struct index_struct *index;
 };
 
-// Helper functions, see below:
+// Function declarations, see below:
 static inline int hash_value(pid_table table, pid_t pid);
 static int insert_entry(pid_table table, pid_t pid, unsigned int cpu);
 static int remove_entry(pid_table table, pid_t pid);
@@ -67,7 +68,7 @@ pid_table create_pid_table(size_t index_size, size_t bucket_count)
 	}
 	// Initialize table and index, allocate data buckets. Return on error:
 	new_table->index_size = index_size;
-	new_table->min_bucket_size = bucket_count;
+	new_table->min_buckets = bucket_count;
 	new_table->index = new_index;
 	for (table_index = 0; table_index < index_size; table_index++)
 	{
@@ -92,7 +93,7 @@ void destroy_pid_table(pid_table table)
 	{
 		return;
 	}
-	// Deallocate each data bucket:
+	// Deallocate data bucket vectors:
 	for (table_index = 0; table_index < table->index_size; table_index++)
 	{
 		free(table->index[table_index].buckets);
@@ -125,213 +126,218 @@ int remove_pid(pid_table table, pid_t pid)
 	return remove_entry(table, pid);
 }
 
-// Get cpu number for pid:
-//int get_cpu(pid_table table, pid_t pid)
-//{
-//	int table_index, bucket_index;
-//	size_t entry_count;
-//
-//	if (table == NULL )
-//	{
-//		return -1;
-//	}
-//
-//	table_index = hash_value(table, pid);
-//	entry_count = table->index[table_index].entry_count;
-//	if (entry_count == 0)
-//	{
-//		return -1;
-//	}
-//	for (bucket_index = 0; bucket_index < entry_count; bucket_index++)
-//	{
-//		if (table->index[table_index].buckets[bucket_index].pid == pid)
-//		{
-//			return table->index[table_index].buckets[bucket_index].cpu;
-//		}
-//	}
-//	return -1;
-//}
+//Get tile number associated with specified pid:
+int get_cpu(pid_table table, pid_t pid)
+{
+	int table_index, bucket_index, low_limit, high_limit;
 
-// Set tile_num for specified pid:
-//int set_tile_num(pid_table table, pid_t pid, int tile_num)
-//{
-//	int hash_index;
-//	struct pid_entry_struct *entry_itr;
-//	// Get hashed table index:
-//	hash_index = hash_value(table, pid);
-//	// Search list at table index for a matching entry:
-//	entry_itr = table->data[hash_index];
-//	while (entry_itr != NULL )
-//	{
-//		// Update tile_num and return if matching entry is found:
-//		if (entry_itr->pid == pid)
-//		{
-//			entry_itr->tile_num = tile_num;
-//			return 0;
-//		}
-//		entry_itr = entry_itr->next;
-//	}
-//// Pid not found:
-//	return -1;
-//}
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find bucket index for entry (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Return when a matching entry is found:
+			return table->index[table_index].buckets[bucket_index].cpu;
+		}
+	}
+	// No matching entry found, indicate error:
+	return -1;
+}
 
-// Returns the hash value for the specified pid:
-static inline int hash_value(struct table_struct *table, pid_t pid)
+// Set tile number for specified pid:
+int set_cpu(pid_table table, pid_t pid, unsigned int cpu)
+{
+	int table_index, bucket_index, low_limit, high_limit;
+
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find bucket index for entry (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Return when a matching entry is found:
+			table->index[table_index].buckets[bucket_index].cpu = cpu;
+			return 0;
+		}
+	}
+	// No matching entry found, indicate error:
+	return -1;
+}
+
+/* Returns the hash value for the specified process ID. This value is simply
+ * calculated as the modulo of the process ID and the table index size. */
+static inline int hash_value(pid_table table, pid_t pid)
 {
 	return pid % table->index_size;
 }
 
-// Insert new entry in table:
+/* Inserts a new entry to table. Entries inserted are kept sorted according to
+ * process ID. This allows fast binary searching of the data buckets. */
 static int insert_entry(pid_table table, pid_t pid, unsigned int cpu)
 {
-	int table_index, position, left_limit, right_limit;
-	pid_t position_pid, left_pid, right_pid;
-	size_t entry_count, bucket_count;
+	int table_index, bucket_index, shift_index, low_limit, high_limit;
 
-	// Calculate table index and current number of entries:
+	// Get table index:
 	table_index = hash_value(table, pid);
-	entry_count = table->index[table_index].entry_count;
-	// Find bucket position for new entry (binary search):
-	left_limit = 0;
-	right_limit = ((int) entry_count) - 1;
-	position = right_limit > 0 ? (left_limit + right_limit) / 2 : -1;
-	while (left_limit <= right_limit)
+	// Find bucket index for new entry (binary search):
+	bucket_index = 0;
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
 	{
-		position_pid = table->index[table_index].buckets[position].pid;
-		if (position_pid == pid)
-		{
-			break;
-		}
-		if (position > left_limit && position < right_limit)
-		{
-			left_pid = table->index[table_index].buckets[position - 1].pid;
-			right_pid = table->index[table_index].buckets[position + 1].pid;
-			if (left_pid <= pid && right_pid >= pid)
-			{
-				break;
-			}
-		}
-		if (position_pid < pid)
-		{
-			left_limit = position + 1;
-		}
-		else if (position_pid > pid)
-		{
-			right_limit = position - 1;
-		}
-		position = (left_limit + right_limit) / 2;
-	}
-	// If bucket vector was empty:
-	if (position == -1)
-	{
-		table->index[table_index].entry_count++;
-		table->index[table_index].buckets[0].pid = pid;
-		table->index[table_index].buckets[0].cpu = cpu;
-		return 0;
-	}
-	// Adjust bucket position:
-	if (position == 0 && position_pid < pid)
-	{
-		position = 1;
-	}
-	else if (position == entry_count - 1 && position_pid < pid)
-	{
-		position = entry_count;
-	}
-	else if (position_pid < pid)
-	{
-		position = position + 1;
-	}
-	// Reallocate bucket vector if full:
-	bucket_count = table->index[table_index].bucket_count;
-	if (entry_count == bucket_count)
-	{
-		if (grow_bucket_vector(table, table_index) != 0)
-		{
-			return -1;
-		}
-	}
-	// Move elements if necessary:
-	if (position < entry_count - 1)
-	{
-		while (entry_count > position)
-		{
-			table->index[table_index].buckets[entry_count] =
-					table->index[table_index].buckets[entry_count - 1];
-			entry_count = entry_count - 1;
-		}
-	}
-	table->index[table_index].entry_count++;
-	table->index[table_index].buckets[position].pid = pid;
-	table->index[table_index].buckets[position].cpu = cpu;
-	return 0;
-}
-
-/* Removes the entry at the specified index and bucket. Any entries following
- * the removed entry are shifted down one step in the bucket vector. */
-static int remove_entry(pid_table table, pid_t pid)
-{
-	int table_index, bucket_index;
-	size_t bucket_count, entry_count;
-
-	table_index = hash_value(table, pid);
-	entry_count = table->index[table_index].entry_count;
-	// Find bucket index (binary search):
-	bucket_index = entry_count / 2;
-	while (bucket_index >= 0 && bucket_index < entry_count)
-	{
-		// Index found or last index reached?
-		if (table->index[table_index].buckets[bucket_index].pid == pid)
-		{
-			break;
-		}
-		else if (bucket_index == 0 || bucket_index == entry_count - 1)
-		{
-			return -1;
-		}
-		// Adjust index:
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
 		if (table->index[table_index].buckets[bucket_index].pid < pid)
 		{
-			bucket_index = (bucket_index + entry_count) / 2;
+			// Move lower bound when existing entry is smaller:
+			low_limit = bucket_index + 1;
 		}
 		else if (table->index[table_index].buckets[bucket_index].pid > pid)
 		{
-			bucket_index = bucket_index / 2;
+			// Move upper bound when existing entry is bigger:
+			high_limit = bucket_index - 1;
 		}
-	}
-	// Not last entry at index?
-	if (bucket_index < entry_count - 1)
-	{
-		// Shift following entries down:
-		while (bucket_index < entry_count - 1)
+		else
 		{
-			table->index[table_index].buckets[bucket_index] =
-					table->index[table_index].buckets[bucket_index + 1];
-			bucket_index++;
+			// Break if existing entry is equal (should not happen...):
+			break;
 		}
 	}
-	// Adjust entry count:
-	entry_count--;
-	table->index[table_index].entry_count = entry_count;
-	bucket_count = table->index[table_index].bucket_count;
-	// Shrink bucket vector if less than 25% full:
-	if ((bucket_count > table->min_bucket_size)
-			&& (entry_count < bucket_count / 4))
+	// If bucket vector is not empty, index may need to be adjusted:
+	if (table->index[table_index].entry_count != 0
+			&& table->index[table_index].buckets[bucket_index].pid < pid)
 	{
-		if (shrink_bucket_vector(table, table_index) != 0)
+		bucket_index++;
+	}
+	// Grow bucket vector to ensure space:
+	if (grow_bucket_vector(table, table_index) != 0)
+	{
+		return -1;
+	}
+	// Shift entries upwards if not inserting on last index in bucket vector:
+	if (bucket_index < table->index[table_index].entry_count)
+	{
+		shift_index = table->index[table_index].entry_count;
+		while (shift_index > bucket_index)
 		{
-			return -1;
+			table->index[table_index].buckets[shift_index] =
+					table->index[table_index].buckets[shift_index - 1];
+			shift_index--;
 		}
 	}
+	// Insert new entry:
+	table->index[table_index].entry_count++;
+	table->index[table_index].buckets[bucket_index].pid = pid;
+	table->index[table_index].buckets[bucket_index].cpu = cpu;
 	return 0;
 }
 
-// Doubles the size of the bucket vector at the specified index:
+/* Removes an entry with a matching process ID (only one such entry should ever
+ * exist). Any entries following the removed entry are shifted one step in the
+ * bucket vector to eliminate gaps. */
+static int remove_entry(pid_table table, pid_t pid)
+{
+	int table_index, bucket_index, shift_index, low_limit, high_limit;
+
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find entry bucket index (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Break when a matching entry is found:
+			break;
+		}
+	}
+	// Return with error if no matching entry found:
+	if (low_limit > high_limit)
+	{
+		return -1;
+	}
+	// Remove found entry:
+	// If not last entry in bucket vector, shift subsequent entries:
+	if (bucket_index != table->index[table_index].entry_count - 1)
+	{
+		shift_index = bucket_index;
+		while (shift_index < table->index[table_index].entry_count - 1)
+		{
+			table->index[table_index].buckets[shift_index] =
+					table->index[table_index].buckets[shift_index + 1];
+			shift_index++;
+		}
+	}
+	table->index[table_index].entry_count--;
+	// Shrink bucket vector and return:
+	return shrink_bucket_vector(table, table_index);
+}
+
+/* Doubles the size of the bucket vector at the specified index if all buckets
+ * are full. */
 static int grow_bucket_vector(struct table_struct *table, int table_index)
 {
 	size_t new_bucket_count;
 	struct entry_struct *new_buckets;
 
+	// Check if bucket vector should be grown (full), otherwise return:
+	if (table->index[table_index].entry_count
+			!= table->index[table_index].bucket_count)
+	{
+		return 0;
+	}
 	// Double bucket count:
 	new_bucket_count = 2 * table->index[table_index].bucket_count;
 	// Reallocate bucket vector:
@@ -346,20 +352,27 @@ static int grow_bucket_vector(struct table_struct *table, int table_index)
 	return 0;
 }
 
-// Halves the bucket vector size until it is at least 25% full:
+/* Shrinks (halves) the bucket vector at the specified index until it is at
+ * least 25% full. */
 static int shrink_bucket_vector(pid_table table, int table_index)
 {
-	size_t new_bucket_count, entry_count;
+	size_t new_bucket_count;
 	struct entry_struct *new_buckets;
 
-	new_bucket_count = table->index[table_index].bucket_count;
-	entry_count = table->index[table_index].entry_count;
+	// Check if bucket vector size should be shrunk, otherwise return:
+	if (table->index[table_index].bucket_count <= table->min_buckets
+			|| table->index[table_index].entry_count
+					> (table->index[table_index].bucket_count / 4))
+	{
+		return 0;
+	}
 	// Calculated new bucket count:
+	new_bucket_count = table->index[table_index].bucket_count;
 	do
 	{
 		new_bucket_count = new_bucket_count / 2;
-	} while (new_bucket_count > table->min_bucket_size
-			&& new_bucket_count / 4 > entry_count);
+	} while (new_bucket_count > table->min_buckets
+			&& (new_bucket_count / 4) > table->index[table_index].entry_count);
 	// Reallocate bucket vector:
 	new_buckets = realloc(table->index[table_index].buckets,
 			new_bucket_count * sizeof(struct entry_struct));
@@ -378,17 +391,17 @@ void print_table(pid_table table)
 {
 	int table_index, bucket_index, entry_count, pid, cpu;
 
-	printf("Printing table:\n");
+	printf("printing table:\n");
 	for (table_index = 0; table_index < table->index_size; table_index++)
 	{
 		entry_count = table->index[table_index].entry_count;
 		if (entry_count == 0)
 		{
-			printf("index[%i]: empty\n", table_index);
+			printf("index[%i] (0): empty\n", table_index);
 		}
 		else
 		{
-			printf("index[%i]: ", table_index);
+			printf("index[%i] (%i): ", table_index, entry_count);
 			for (bucket_index = 0; bucket_index < entry_count; bucket_index++)
 			{
 				pid = table->index[table_index].buckets[bucket_index].pid;
