@@ -104,7 +104,7 @@ void destroy_pid_table(pid_table table)
 }
 
 // Add new pid to table:
-int add_pid(pid_table table, pid_t pid, unsigned int cpu)
+int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu)
 {
 	if (table == NULL )
 	{
@@ -115,7 +115,7 @@ int add_pid(pid_table table, pid_t pid, unsigned int cpu)
 }
 
 // Remove pid from table:
-int remove_pid(pid_table table, pid_t pid)
+int remove_pid_from_pid_table(pid_table table, pid_t pid)
 {
 	if (table == NULL )
 	{
@@ -126,7 +126,7 @@ int remove_pid(pid_table table, pid_t pid)
 }
 
 //Get tile number associated with specified pid:
-int get_cpu(pid_table table, pid_t pid)
+int get_cpu_from_pid(pid_table table, pid_t pid)
 {
 	int table_index, bucket_index, low_limit, high_limit;
 

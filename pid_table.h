@@ -35,16 +35,16 @@ void destroy_pid_table(pid_table table);
 
 /* Adds a new entry to the table with the specified process ID and allocated
  * tile. On success 0 is returned, otherwise -1. */
-int add_pid(pid_table table, pid_t pid, unsigned int cpu);
+int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu);
 
 /* Removes the entry with the specified process ID from the table. Returns 0 on
  * success, otherwise -1. */
-int remove_pid(pid_table table, pid_t pid);
+int remove_pid_from_pid_table(pid_table table, pid_t pid);
 
 /* Tries to find an entry with the specified process ID and return the number
  * of the tile allocated to the process. On success the tile number is returned,
  * otherwise -1. */
-int get_cpu(pid_table table, pid_t pid);
+int get_cpu_from_pid(pid_table table, pid_t pid);
 
 /* Sets the tile number for the specified process ID to the specified value.
  * On success 0 is returned, otherwise -1. */

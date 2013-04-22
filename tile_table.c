@@ -89,7 +89,7 @@ void destroy_tile_table(tile_table table)
 }
 
 // Add new pid to tile table:
-int add_pid(tile_table table, pid_t pid, unsigned int cpu)
+int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu)
 {
 	size_t bucket_count = table->tile[cpu].bucket_count;
 
@@ -113,7 +113,7 @@ int add_pid(tile_table table, pid_t pid, unsigned int cpu)
 }
 
 // Remove pid from tile table:
-int remove_pid(tile_table table, pid_t pid, unsigned int cpu)
+int remove_pid_from_tile_table(tile_table table, pid_t pid, unsigned int cpu)
 {
 	int pid_index, shift_index;
 

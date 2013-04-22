@@ -35,11 +35,11 @@ void destroy_tile_table(tile_table table);
 
 /* Adds a new entry to the table with the specified process ID and allocated
  * tile. On success 0 is returned, otherwise -1. */
-int add_pid(tile_table table, pid_t pid, unsigned int cpu);
+int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu);
 
 /* Removes the entry with the specified process ID from the table. Returns 0 on
  * success, otherwise -1. */
-int remove_pid(tile_table table, pid_t pid, unsigned int cpu);
+int remove_pid_from_tile_table(tile_table table, pid_t pid, unsigned int cpu);
 
 /* Tries to find an entry with the specified process ID and return the number
  * of the tile allocated to the process. On success the tile number is returned,
@@ -48,6 +48,6 @@ void get_pids_on_tile(tile_table table, pid_t *return_pid, unsigned int cpu);
 
 /* Sets the tile number for the specified process ID to the specified value.
  * On success 0 is returned, otherwise -1. */
-int set_cpu(tile_table table, pid_t pid, unsigned int cpu);
+//int set_cpu_in_tile_table(tile_table table, pid_t pid, unsigned int cpu);
 
-#endif /* _PID_TABLE_H */
+#endif /* _TILE_TABLE_H */

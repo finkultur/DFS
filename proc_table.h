@@ -9,7 +9,7 @@
 
 struct proc_table_struct;
 
-typedef struct proc_table_struc *proc_table;
+typedef struct proc_table_struct *proc_table;
 
 proc_table create_proc_table(size_t num_tiles);
 
@@ -19,7 +19,7 @@ int add_pid(proc_table, pid_t pid, int tile_num);
 
 int remove_pid(proc_table, pid_t pid);
 
-int move_pid(proc_table, pid_t pid, int new_tile_num);
+int move_pid_to_tile(proc_table, pid_t pid, int new_tile_num);
 
 int get_pid_count(proc_table, int tile_num);
 

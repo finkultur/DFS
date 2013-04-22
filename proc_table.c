@@ -1,135 +1,100 @@
 /* proc_table.c
- *
+ * This is a combined interface to pid_table/tile_table
  * */
 
+/*
+ * How do I keep count of number of processes?
+ * How do I...
+ *
+ *
+ *
+ */
+
+
+#include <stdio.h>
 #include <stdlib.h>
+#include "pid_table.h"
+#include "tile_table.h"
+#include "proc_table.h"
 
+// When do I need these?
 #define MAX_PIDS_PER_TILE 32
-
 #define MAX_PIDS_PER_INDEX 32
 
-/*
- * Contains all pids on a specific tile. num_pids is used for counting pids.
- * */
-struct tile_entry_struct
-{
-	int num_pids;
-	pid_t pid_vector[MAX_PIDS_PER_TILE];
+struct proc_table_struct {
+	tile_table tile_table;
+	pid_table pid_table;
 };
 
-/*
- * Contains an array of all tiles. num_tiles is used for counting tiles.
- * */
-struct tile_table_struct
-{
-	size_t num_tiles;
-	struct tile_entry_struct *tile_vector;
-};
-
-/*
- * Contains pid and tile number, for associating a pid with a tile number.
- * */
-struct pid_entry_struct
-{
-	pid_t pid;
-	int tile_num;
-};
-
-/*
- * Contains an array of touples of pids and tile numbers.
- * */
-struct pid_index_struct
-{
-	int num_pids;
-	struct pid_entry_struct pid_vector[MAX_PIDS_PER_INDEX];
-};
-
-/*
- *
- * */
-struct pid_table_struct
-{
-	int num_indices;
-	struct pid_index_struct *index_vector;
-};
-
-struct proc_table_struct
-{
-	struct tile_table_struct *tile_table;
-	struct pid_table_struct *pid_table;
-};
-
-struct proc_table_struct *create_proc_table(size_t num_tiles)
-{
+// Are the calloc necessary here or just needed in pid_table / tile_table?
+struct proc_table_struct *create_proc_table(size_t num_tiles) {
 	struct proc_table_struct *table;
 
-	if ((table = calloc(1, sizeof(struct proc_table_struct))) == NULL )
-	{
-		return NULL ;
+	if ((table = calloc(1, sizeof(struct proc_table_struct))) == NULL) {
+		return NULL;
 	}
 
-	if ((table->tile_table = calloc(1, sizeof(struct tile_table_struct)))
-			== NULL
-			|| (table->pid_table = calloc(1, sizeof(struct pid_table_struct)))
-					== NULL )
+	if ((table->tile_table = calloc(1, sizeof(struct tile_table_struct))) == NULL
+	   || (table->pid_table = calloc(1, sizeof(struct pid_table_struct))) == NULL)
 	{
 		free(table);
-		return NULL ;
+		return NULL;
 	}
 
-	if ((table->tile_table->tile_vector = calloc(num_tiles,
-			sizeof(struct tile_entry_struct))) == NULL
-			|| (table->pid_table->index_vector = calloc(num_tiles,
-					sizeof(struct pid_index_struct))) == NULL )
-	{
-		free(table->tile_table);
-		free(table->pid_table);
-		free(table);
-		return NULL ;
-	}
-
-	table->tile_table->num_tiles = num_tiles;
-	table->pid_table->num_indices = num_tiles;
+    if (table->pid_table = create_pid_table(ADSADASD) == NULL) {
+        return NULL;
+    }
+    if (table->tile_table = create_tile_table(ASDASDASDIUASD) == NULL) {
+        return NULL;
+    }
 
 	return table;
 }
 
-void destroy_proc_table(struct proc_table_struct *table)
-{
-	free(table->tile_table->tile_vector);
-
-	free(table->pid_table->index_vector);
-
-	free(table->tile_table);
-
-	free(table->pid_table);
-
-	free(table);
+// Do I need to do free something else here?
+void destroy_proc_table(struct proc_table_struct *table) {
+    destroy_pid_table(table->pid_table_struct);
+    destroy_tile_Table(table->tile_table_struct);
 }
 
-int add_pid(struct proc_table_struct *table, pid_t pid, int tile_num)
-{
-	int tile_vector_index, pid_table_index, pid_vector_index;
+int add_pid(proc_table table, pid_t pid, int tile_num) {
+    if (add_pid_to_pid_table(table->pid_table_struct, pid, tile_num) != 0) {
+        return -1;
+    }
+    if (add_pid_to_tile_table(table->tile_table_struct, pid, tile_num) != 0) {
+        return -1;
+    }
+    return 0;
+}
 
-	tile_vector_index = table->tile_table->tile_vector[tile_num].num_pids;
+int remove_pid(proc_table table, pid_t pid) {
+    if (remove_pid_from_pid_table(table->pid_table, pid) != 0) {
+        return -1;
+    }
+    if (remove_pid_from_tile_table(table->tile_table, pid) != 0) {
+        return -1;
+    }
+    return 0;
+}
 
-	pid_table_index = pid % table->pid_table->num_indices;
-	pid_vector_index = table->pid_table->index_vector[pid_table_index].num_pids;
+int move_pid_to_tile(proc_table table, pid_t pid, int new_tile_num) {
+    if (remove_pid(table, pid) != 0) {
+        return -1;
+    }
+    if (add_pid(table, pid, new_tile_num) != 0) {
+        return -1;
+    }
+    return 0;
+}
 
-	if (tile_vector_index >= MAX_PIDS_PER_TILE
-			|| pid_vector_index >= MAX_PIDS_PER_INDEX)
-	{
-		return 1;
-	}
+int get_pid_count(proc_table table, int tile_num) {
 
-	table->tile_table->tile_vector[tile_num].pid_vector[tile_vector_index] =
-			pid;
-	table->tile_table->tile_vector[tile_num].num_pids++;
+}
 
-	table->pid_table->index_vector[pid_table_index].pid_vector[pid_vector_index].pid =
-			pid;
-	table->pid_table->index_vector[pid_table_index].pid_vector[pid_vector_index].tile_num =
-			tile_num;
-	return 0;
+/*
+ * 
+ */
+const pid_t *get_pid_vector(proc_table, int tile_num) {
+
 }
 
