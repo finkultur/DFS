@@ -6,20 +6,13 @@
 #include <stdlib.h>
 #include "tile_table.h"
 
-/* Each table entry is represented by an pid_struct. This data type records a
- * process ID and the number of the tile allocated to the process. */
-struct pid_struct
-{
-	pid_t pid;
-	unsigned int cpu;
-};
-
 /* Each index is represented by an index_struct. This data type holds the
  * vector of data buckets, the number of available buckets and a count of the
  * number of entries stored at the index. */
 struct tile_struct
 {
 	size_t pid_count;
+	size_t bucket_count;
 	pid_t *pid;
 };
 
@@ -34,11 +27,6 @@ struct tile_table_struct
 };
 
 // Function declarations, see below:
-static int
-insert_entry(tile_table table, pid_t pid, unsigned int cpu);
-static int
-remove_entry(tile_table table, pid_t pid);
-int find_index(tile_table table, pid_t pid, unsigned int cpu);
 static int grow_pid_vector(tile_table table, unsigned int cpu);
 static int shrink_pid_vector(tile_table table, unsigned int cpu);
 
@@ -103,114 +91,51 @@ void destroy_tile_table(tile_table table)
 // Add new pid to tile table:
 int add_pid(tile_table table, pid_t pid, unsigned int cpu)
 {
-	if (table == NULL )
-	{
-		return -1;
-	}
-	// Add entry to table:
-	return insert_entry(table, pid, cpu);
-}
-
-// Remove pid from tile table:
-int remove_pid(tile_table table, pid_t pid)
-{
-	if (table == NULL )
-	{
-		return -1;
-	}
-	// Remove entry from table:
-	return remove_entry(table, pid);
-}
-
-// Set tile number for specified pid:
-int set_cpu(tile_table table, pid_t pid, unsigned int cpu)
-{
-	int low_limit, high_limit, pid_index;
+	size_t bucket_count = table->tile[cpu].bucket_count;
 
 	if (table == NULL )
 	{
 		return -1;
 	}
 
-	// Find bucket index for entry (binary search):
-	low_limit = 0;
-	high_limit = (int) table->num_tiles - 1;
-	while (low_limit <= high_limit)
+	if (table->tile[cpu].bucket_count == table->tile[cpu].pid_count)
 	{
-		// Calculate next index to test:
-		pid_index = (low_limit + high_limit) / 2;
-		if (table->tile[cpu].pid[pid_index] < pid)
+		if (grow_pid_vector(table, cpu) != 0)
 		{
-			// Adjust lower bound when current entry is smaller:
-			low_limit = pid_index;
-		}
-		else if (table->tile[cpu].pid[pid_index] > pid)
-		{
-			// Adjust higher bound when current entry is bigger:
-			high_limit = pid_index;
-		}
-		else
-		{
-			// Return when a matching entry is found:
-			table->tile[cpu].pid[pid_index] = cpu;
-			return 0;
+			return -1;
 		}
 	}
-	// No matching entry found, indicate error:
-	return -1;
-}
 
-// Get all pids on a given cpu.
-pid_t* get_cpu(tile_table table, unsigned int cpu)
-{
-	return table->tile[cpu].pid;
-}
-
-/* Inserts a new entry to table. Entries inserted are kept sorted according to
- * process ID. This allows fast binary searching of the data buckets. */
-static int insert_entry(tile_table table, pid_t pid, unsigned int cpu)
-{
-	int pid_index, shift_index;
-
-	// Find bucket index for new entry (binary search):
-	pid_index = find_index(table, pid, cpu);
-
-	// Grow bucket vector to ensure space:
-	if (grow_pid_vector(table, cpu) != 0)
-	{
-		return -1;
-	}
-	// Shift entries upwards if not inserting on last index in bucket vector:
-	if (pid_index < table->tile[cpu].pid_count)
-	{
-		shift_index = table->tile[cpu].pid_count;
-		while (shift_index > pid_index)
-		{
-			table->tile[cpu].pid[shift_index] = table->tile[cpu].pid[shift_index
-					- 1];
-			shift_index--;
-		}
-	}
-	// Insert new entry and increase counter:
-	table->tile[cpu].pid_count++;
-	table->tile[cpu].pid[pid_index] = pid;
+	// Add entry pid to tile, last in the array:
+	table->tile[cpu].pid[bucket_count] = pid;
 
 	return 0;
 }
 
-/* Removes an entry with a matching process ID (only one such entry should ever
- * exist). Any entries following the removed entry are shifted one step in the
- * bucket vector to eliminate gaps. */
-static int remove_entry(tile_table table, pid_t pid)
+// Remove pid from tile table:
+int remove_pid(tile_table table, pid_t pid, unsigned int cpu)
 {
-	int pid_index, cpu, shift_index;
+	int pid_index, shift_index;
 
-	//Want to get the cpu of a gien pid. Either fetch or give as a parameter.
-	//cpu = get_cpu(table, pid);
-	pid_index = find_index(table, pid, cpu);
+	if (table == NULL )
+	{
+		return -1;
+	}
 
-	// Remove found entry:
-	// If not last entry in bucket vector, shift subsequent entries:
+	for(pid_index = 0; pid_index < table->tile[cpu].pid_count; pid_index++)
+	{
+		if (table->tile[cpu].pid[pid_index] == pid)
+		{
+			break;
+		}
+	}
+	// No pid found, return error:
+	if (pid_index == table->tile[cpu].pid_count)
+	{
+		return -1;
+	}
+
+	// Remove entry from table:
 	if (pid_index != table->tile[cpu].pid_count - 1)
 	{
 		shift_index = pid_index;
@@ -221,54 +146,15 @@ static int remove_entry(tile_table table, pid_t pid)
 			shift_index++;
 		}
 	}
-	table->tile[cpu].pid--;
+	table->tile[cpu].pid_count--;
 	// Shrink bucket vector and return:
-	return (shrink_pid_vector(table, table->num_tiles));
+	return (shrink_pid_vector(table, cpu));
 }
 
-/* Uses binary search to find an index in the table. Either for insertion or deletion.
- *
- */
-int find_index(tile_table table, pid_t pid, unsigned int cpu)
+// Get all pids on a given cpu.
+void get_pids_on_tile(tile_table table, pid_t *return_pid, unsigned int cpu)
 {
-	int pid_index, low_limit, high_limit;
-
-	// Find bucket index for new entry (binary search):
-	pid_index = 0;
-	low_limit = 0;
-	high_limit = ((int) table->tile[cpu].pid_count) - 1;
-	while (low_limit <= high_limit)
-	{
-		// Calculate next index to test:
-		pid_index = (low_limit + high_limit) / 2;
-		if (table->tile[cpu].pid[pid_index] < pid)
-		{
-			// Move lower bound when existing entry is smaller:
-			low_limit = pid_index + 1;
-		}
-		else if (table->tile[cpu].pid[pid_index] > pid)
-		{
-			// Move upper bound when existing entry is bigger:
-			high_limit = pid_index - 1;
-		}
-		else
-		{
-			// Break if existing entry is equal (should not happen...):
-			break;
-		}
-	}
-	// If bucket vector is not empty, index may need to be adjusted:
-	if (table->tile[cpu].pid_count != 0
-			&& table->tile[cpu].pid[pid_index] < pid)
-	{
-		pid_index++;
-	}
-	else if (low_limit > high_limit)
-	{
-		return -1;
-	}
-
-	return pid_index;
+	return_pid = table->tile[cpu].pid;
 }
 
 /* Doubles the size of the bucket vector at the specified index if all buckets
@@ -277,21 +163,18 @@ static int grow_pid_vector(struct tile_table_struct *table, unsigned int cpu)
 {
 	size_t new_vector_size;
 	pid_t *new_pid_vector;
-	int pid_vector_size = sizeof(table->tile[cpu].pid) / sizeof(pid_t);
+	int pid_vector_size = table->tile[cpu].bucket_count;
 
 	// Check if pid vector should be grown (full), otherwise return:
 	if (table->tile[cpu].pid_count < pid_vector_size)
 	{
 		return 0;
 	}
-	printf("Growth of vector imminent\n", NULL);
-	printf("Current vector size: %i\n", pid_vector_size);
 	// Double bucket count:
 	new_vector_size = 2 * pid_vector_size;
-	printf("New vector size: %i\n", new_vector_size);
 	// Reallocate bucket vector:
 	new_pid_vector = realloc(table->tile[cpu].pid,
-			new_vector_size * sizeof(size_t));
+			new_vector_size * sizeof(pid_t));
 	if (new_pid_vector == NULL )
 	{
 		return -1;
