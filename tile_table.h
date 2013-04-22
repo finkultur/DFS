@@ -1,34 +1,53 @@
 /* tile_table.h
  *
- * A hash table module used for recording the processes running on each tile
- * (CPU core).
- * The table is index by tile number starting from zero. To improve the
- * runtime performance, especially targeting memory efficiency, the data
- * buckets on each position in the hash index are implemented with a vector that
- * dynamically changes its size (growing and shrinking) to fit the number of
- * entries. For best performance, it is therefore important to consider the
- * number of processes the system will handle and size the table accordingly.
- * */
+ * A hash table module used to record process-to-tile (CPU core) allocation.
+ * The table is indexed by a simple value calculated from the process ID modulo
+ * the size of the hash index.
+ * To improve the runtime execution performance, the data buckets on each index
+ * are implemented with a dynamically sized vector. When creating a table, it
+ * is therefore important to consider the initial size of both the hash index
+ * and the data bucket vectors. These values should be properly adjusted to
+ * ensure that the table will fit the expected number of elements in an
+ * effective manner.
+ * To further improve performance, especially targeting lookup speed, the data
+ * buckets are kept sorted (by process ID) to allow binary searching.
+ */
 
 #ifndef _TILE_TABLE_H
 #define _TILE_TABLE_H
 
 #include <unistd.h>
 
+/* Each table instance is represented by a table_struct. */
 struct tile_table_struct;
 
+/* Typedef for a user handle to a table instance (table pointer). */
 typedef struct tile_table_struct *tile_table;
 
-tile_table create_tile_table(size_t num_cpus, size_t num_cpu_procs);
+/* Allocates a new table with the specified sizes for the hash index and the
+ * data bucket vectors.
+ * On success a handle to the table is returned, otherwise NULL. */
+tile_table create_tile_table(size_t num_tiles, size_t min_proc_space);
 
+/* Destroys the given table by freeing up allocated memory. All table entries
+ * are also freed during the operation. */
 void destroy_tile_table(tile_table table);
 
+/* Adds a new entry to the table with the specified process ID and allocated
+ * tile. On success 0 is returned, otherwise -1. */
 int add_pid(tile_table table, pid_t pid, unsigned int cpu);
 
+/* Removes the entry with the specified process ID from the table. Returns 0 on
+ * success, otherwise -1. */
 int remove_pid(tile_table table, pid_t pid);
 
-int get_proc_count(tile_table table, unsigned int cpu);
+/* Tries to find an entry with the specified process ID and return the number
+ * of the tile allocated to the process. On success the tile number is returned,
+ * otherwise -1. */
+pid_t * get_cpu(tile_table table, unsigned int cpu);
 
-int get_procs(tile_table table, unsigned int cpu, pid_t *pids, size_t max_pids);
+/* Sets the tile number for the specified process ID to the specified value.
+ * On success 0 is returned, otherwise -1. */
+int set_cpu(tile_table table, pid_t pid, unsigned int cpu);
 
-#endif
+#endif /* _PID_TABLE_H */
