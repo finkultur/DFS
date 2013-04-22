@@ -166,7 +166,9 @@ int get_pids(tile_table table, unsigned int cpu, pid_t *pids, size_t num_pid)
 		return -1;
 	}
 	// Copy running pids to parameter array:
-	for (pid_index = 0; pid_index < num_pid; pid_index++)
+	for (pid_index = 0;
+			pid_index < table->index[cpu].entry_count && pid_index < num_pid;
+			pid_index++)
 	{
 		pids[pid_index] = table->index[cpu].buckets[pid_index];
 	}
