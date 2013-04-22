@@ -5,36 +5,37 @@
 #include <time.h>
 #include "tile_table.h"
 
-static const int num_tiles = 8;
-static const int min_pids = 100;
-static const int num_pids = 100;
+static const int num_cpu = 4;
+static const int num_pid = 2;
+static const int num_entry = 1000;
 
-// Performs a test of the pid_table module:
+// Performs a test of the tile_table module:
 int main(int argc, char *argv[])
 {
-	int n, pid, cpu, new_cpu;
-	pid_t pids[num_pids];
+	int n, pid, cpu;
+	int entry_cpu[num_entry];
+	pid_t entry_pid[num_entry];
 	tile_table table;
 
 	// Create table:
-	printf("creating tile_table with %i tiles and a %i-sized pid vector\n", num_tiles, min_pids);
-	table = create_tile_table(num_tiles, min_pids);
-	if (table == NULL)
+	printf("creating table\n");
+	table = create_tile_table(num_cpu, num_pid);
+	if (table == NULL )
 	{
 		printf("failed!\n");
 		return 1;
 	}
 	printf("OK!\n");
-
 	// Seed rand():
 	srand(time(NULL ));
 	// Add entries:
-	printf("adding %i entries\n", num_pids);
-	for (n = 0; n < num_pids; n++)
+	printf("adding %i entries\n", num_entry);
+	for (n = 0; n < num_entry; n++)
 	{
 		pid = rand();
-		pids[n] = pid;
-		cpu = rand() % num_tiles;
+		cpu = rand() % num_cpu;
+		entry_pid[n] = pid;
+		entry_cpu[n] = cpu;
 		if (add_pid(table, pid, cpu) != 0)
 		{
 			printf("failed!\n");
@@ -42,19 +43,17 @@ int main(int argc, char *argv[])
 		}
 	}
 	printf("OK!\n");
-
 	// Remove elements:
 	printf("removing each entry\n");
-	for (n = 0; n < num_pids; n++)
+	for (n = 0; n < num_entry; n++)
 	{
-		if (remove_pid(table, pids[n], cpu) != 0)
+		if (remove_pid(table, entry_pid[n], entry_cpu[n]) != 0)
 		{
 			printf("failed!\n");
 			return 1;
 		}
 	}
 	printf("OK!\n");
-
 	// Destroy table
 	printf("destroying table\n");
 	destroy_tile_table(table);
