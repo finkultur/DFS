@@ -77,9 +77,9 @@ void *poll_pmcs(void *struct_with_all_args) {
             if (wr_cnt != 0) {
                 write_miss_rates[i] = ((float) wr_miss) / wr_cnt;
                 // If value is over CONTENTION_LIMIT, "cool down" tile
-                if ((pids_per_tile[i] * write_miss_rates[i]) > CONTENTION_LIMIT) {
+                if ((get_pid_count(table,i) * write_miss_rates[i]) > CONTENTION_LIMIT) {
                     printf("Cooool down please!\n");
-                    cool_down_tile(i);
+                    cool_down_tile(i, 1); // Cool down by 1 Unit
                 }
             }
             if (drd_cnt != 0) {
@@ -103,7 +103,7 @@ void print_wr_miss_rates() {
     printf("Wr miss rates:\n");
     for (int i=0;i<num_of_cpus;i++) {
         printf("Tile %i: Processes %i, Write miss rate is: %f\n", 
-               i, pids_per_tile[i], write_miss_rates[i]);
+               i, get_pid_count(table, i), write_miss_rates[i]);
     }
 }
 
@@ -119,7 +119,7 @@ void cool_down_tile(int tilenum, int how_much) {
     // Move the pids
     for (int i=0;i<how_much;i++) {
         if (pids_to_move[i] > 0) { // Redundant check?
-            new_tile = get_tile(cpus, pids_per_tile, write_miss_rates);
+            new_tile = get_tile(cpus, table, write_miss_rates);
             migrate_process(pids_to_move[i], new_tile);
         }
     }
@@ -136,9 +136,6 @@ void migrate_process(int pid, int newtile) {
     // Reorder proc_table
     move_pid_to_tile(table, pid, newtile);
 
-    // Reorder tile allocation array
-    pids_per_tile[oldtile]--;
-    pids_per_tile[newtile]++;
     printf("Pid %i moved from logical tile %i to logical tile %i\n", 
            pid, oldtile, newtile);
 }

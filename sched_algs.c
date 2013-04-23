@@ -68,9 +68,9 @@ int get_least_occupied_tile(int num_of_cpus, proc_table table) {
     int min_val = get_pid_count(table, 0);
 
     for (int i=1;i<num_of_cpus;i++) {
-        if (get_pid_count(i) < min_val) {
+        if (get_pid_count(table, i) < min_val) {
             best_tile = i;
-            min_val = get_pid_count(table, i) 
+            min_val = get_pid_count(table, i); 
         }
     }
     return best_tile;

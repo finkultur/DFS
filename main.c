@@ -25,7 +25,7 @@
 #include "perfcount.h"
 #include "proc_table.h"
 
-#define NUM_OF_CPUS 8
+#define NUM_OF_CPUS 8 
 #define TABLE_SIZE 8
 
 // RTS handlers:
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     }
     printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
     if (tmc_cpus_count(&cpus) != NUM_OF_CPUS) {
-        tmc_task_die("Got wrong number of cpus");
+        tmc_task_die("Got wrong number of cpus: %i requested, got %i", NUM_OF_CPUS, tmc_cpus_count(&cpus));
     }
 
     // NOW DONE IN POLL_PMC THREAD!
