@@ -32,15 +32,15 @@ void destroy_tile_table(tile_table table);
 
 /* Adds the specified process ID to the list of running processes on the
  * specified tile. On success 0 is returned, otherwise -1. */
-int add_pid(tile_table table, pid_t pid, unsigned int cpu);
+int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu);
 
 /* Removes the specified process ID from the list of running processes on the
  * specified tile. Returns 0 on success, otherwise -1. */
-int remove_pid(tile_table table, pid_t pid, unsigned int cpu);
+int remove_pid_from_tile_table(tile_table table, pid_t pid, unsigned int cpu);
 
 /* Returns the number of processes running of the specified tile or -1 if the
  * an error occurred. */
-int get_pid_count(tile_table table, unsigned int cpu);
+int get_pid_count_from_tile(tile_table table, unsigned int cpu);
 
 /* Returns the process IDs of all processes running on the specified tile. The
  * IDs are copied to the user specified array, pids, with a maximum number of

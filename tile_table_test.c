@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 		cpu = rand() % num_cpu;
 		entry_pid[n] = pid;
 		entry_cpu[n] = cpu;
-		if (add_pid(table, pid, cpu) != 0)
+		if (add_pid_to_tile_table(table, pid, cpu) != 0)
 		{
 			printf("failed!\n");
 			return 1;
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	printf("removing each entry\n");
 	for (n = 0; n < num_entry; n++)
 	{
-		if (remove_pid(table, entry_pid[n], entry_cpu[n]) != 0)
+		if (remove_pid_from_tile_table(table, entry_pid[n], entry_cpu[n]) != 0)
 		{
 			printf("failed!\n");
 			return 1;

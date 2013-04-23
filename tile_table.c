@@ -94,7 +94,7 @@ void destroy_tile_table(tile_table table)
 }
 
 // Add pid to list of running processes on specified tile:
-int add_pid(tile_table table, pid_t pid, unsigned int cpu)
+int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu)
 {
 	if (table == NULL || cpu >= table->index_size
 			|| grow_bucket_vector(table, cpu) != 0)
@@ -108,7 +108,7 @@ int add_pid(tile_table table, pid_t pid, unsigned int cpu)
 }
 
 // Remove pid from list of running processes on specified tile:
-int remove_pid(tile_table table, pid_t pid, unsigned int cpu)
+int remove_pid_from_tile_table(tile_table table, pid_t pid, unsigned int cpu)
 {
 	int bucket_index, shift_index;
 
@@ -147,7 +147,7 @@ int remove_pid(tile_table table, pid_t pid, unsigned int cpu)
 }
 
 // Get number of processes running on tile:
-int get_pid_count(tile_table table, unsigned int cpu)
+int get_pid_count_from_tile(tile_table table, unsigned int cpu)
 {
 	if (table == NULL || cpu >= table->index_size)
 	{
