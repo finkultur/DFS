@@ -19,11 +19,11 @@
 #include <tmc/udn.h>
 
 // DFS 
-#include "pid_table.h"
 #include "cmd_list.h"
 #include "sched_algs.h"
 #include "migrate.h"
 #include "perfcount.h"
+#include "proc_table.h"
 
 #define NUM_OF_CPUS 8
 #define TABLE_SIZE 8
@@ -35,12 +35,10 @@ void end_handler(int, siginfo_t*, void*);
 // Functions that probably shouldn't be defined in main
 int start_process(void);
 int children_is_still_alive(void);
-void print_tileAlloc(void);
 
 // Global values:
 int counter = 0;
-pid_table table;
-int tileAlloc[NUM_OF_CPUS] = {0};
+proc_table table; 
 float wr_miss_rates[NUM_OF_CPUS] = {1.0};
 float drd_miss_rates[NUM_OF_CPUS] = {1.0};
 cmd_list list;
@@ -81,10 +79,8 @@ int main(int argc, char *argv[]) {
     }
     printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
     if (tmc_cpus_count(&cpus) != NUM_OF_CPUS) {
-//        tmc_task_die("Insufficient cpus available.");
         tmc_task_die("Got wrong number of cpus");
     }
-
 
     // NOW DONE IN POLL_PMC THREAD!
     // Setup all performance counters on every initialized tile
@@ -92,13 +88,9 @@ int main(int argc, char *argv[]) {
         printf("setup_all_counters failed\n");
         return 1;
     }*/
-
-    for (int i=0;i<NUM_OF_CPUS;i++) {
-        tileAlloc[i] = 0;
-    }
    
-    // Initialize pid_table
-    table = create_pid_table(TABLE_SIZE);
+    // Initialize proc_table
+    table = create_proc_table(NUM_OF_CPUS);
     // Parse the file and set next to first entry in file.
     if ((list = create_cmd_list(argv[1])) == NULL) {
         printf("Failed to create command list from file: %s\n", argv[1]);
@@ -107,8 +99,7 @@ int main(int argc, char *argv[]) {
  
     // Define a struct containing data to be sent to thread
     struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
-    data->tileAlloc = tileAlloc;
-    data->pidtable = table;
+    data->proctable = table;
     data->cpus = &cpus;
     data->wr_miss_rates = wr_miss_rates;
     data->drd_miss_rates = drd_miss_rates;
@@ -147,13 +138,12 @@ int main(int argc, char *argv[]) {
         child_pid = wait(NULL);
         if (child_pid > 0) {
             child_tile_num = get_tile_num(table, child_pid);
-            tileAlloc[child_tile_num]--;
             remove_pid(table, child_pid);
         }
     }
 
     // This function (usually) prints performance counters & their miss rate
-    get_tile_with_min_write_miss_rate(&cpus);
+    //get_tile_with_min_write_miss_rate(&cpus);
 
     // Print start, end and total time elapsed.
     long long int end_time = time(NULL);
@@ -189,10 +179,7 @@ int start_process() {
  
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
-        int tile_num = get_tile(&cpus, tileAlloc, wr_miss_rates);
-        // Increment the number of processes running on that tile.
-        tileAlloc[tile_num]++;
-        print_tileAlloc();
+        int tile_num = get_tile(&cpus, table, wr_miss_rates);
 
         int pid = fork();
         if (pid < 0) {
@@ -207,7 +194,7 @@ int start_process() {
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
             printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, wr_miss_rate: %f\n", 
-                   mypid, mycurcpu, tile_num, tileAlloc[tile_num], wr_miss_rates[tile_num]);
+                   mypid, mycurcpu, tile_num, get_pid_count(table, tile_num), wr_miss_rates[tile_num]);
                         
 
             chdir(cmd->dir);
@@ -248,24 +235,13 @@ int start_process() {
 }
 
 /*
- * Prints the tileAlloc array
- */
-void print_tileAlloc() {
-    printf("Process allocation: ");
-    for (int i=0;i<NUM_OF_CPUS;i++) {
-        printf("%i:%i, ", i, tileAlloc[i]);
-    }
-    printf("\n");
-}
-
-/*
  * Checks if there are running child processes.
  * Returns 1 if any children is still alive.
  * Isn't it a syscall for this? 
  */
 int children_is_still_alive() {
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        if (tileAlloc[i] != 0) {
+        if (get_pid_count(table, i) != 0) {
             return 1;
         }
     }

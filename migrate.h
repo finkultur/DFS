@@ -2,8 +2,7 @@
 #define MIGRATE_H
 // Struct to be sent to thread that polls pmcs
 struct poll_thread_struct {
-    pid_table pidtable;
-    int *tileAlloc;
+    proc_table proctable;
     float *wr_miss_rates;
     float *drd_miss_rates;
     cpu_set_t *cpus;

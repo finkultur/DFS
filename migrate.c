@@ -11,7 +11,7 @@
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 
-#include "pid_table.h"
+#include "proc_table.h"
 #include "perfcount.h"
 #include "sched_algs.h"
 #include "migrate.h"
@@ -24,8 +24,7 @@ cpu_set_t *cpus;
 int num_of_cpus;
 float *write_miss_rates;
 float *read_miss_rates;
-pid_table pidtable;
-int *pids_per_tile;
+proc_table table;
 
 /*
  * "Thread-function" that polls the performance registers every 
@@ -36,7 +35,7 @@ int *pids_per_tile;
  * - an array of floats where it saves write miss rates
  * - an array of floats where it saves read miss rates
  * - an array of ints with pids per tile
- * - a pid_table struct
+ * - a proc_table struct
  */
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
@@ -45,8 +44,7 @@ void *poll_pmcs(void *struct_with_all_args) {
     struct poll_thread_struct *data;
     data = (struct poll_thread_struct *) struct_with_all_args;
 
-    pidtable = data->pidtable;
-    pids_per_tile = data->tileAlloc;
+    table = data->proctable;
     write_miss_rates = data->wr_miss_rates;
     read_miss_rates = data->drd_miss_rates;
     cpus = data->cpus;
@@ -102,24 +100,28 @@ void *poll_pmcs(void *struct_with_all_args) {
 }
 
 void print_wr_miss_rates() {
-
     printf("Wr miss rates:\n");
     for (int i=0;i<num_of_cpus;i++) {
         printf("Tile %i: Processes %i, Write miss rate is: %f\n", 
                i, pids_per_tile[i], write_miss_rates[i]);
     }
-
 }
 
 /*
- * Moves an arbitrary process from a specified tile to a new one with less
+ * Moves a number of processes from a specified tile to new ones with less
  * contention. 
  */
-void cool_down_tile(int tilenum) {
-    int pid_to_move = get_first_pid_from_tile(tilenum);
-    if (pid_to_move > 0) {
-        int newtile = get_tile(cpus, pids_per_tile, write_miss_rates);
-        migrate_process(pid_to_move, newtile);
+void cool_down_tile(int tilenum, int how_much) {
+    pid_t pids_to_move[how_much];
+    get_pid_vector(table, tilenum, pids_to_move, how_much);
+    int new_tile;
+
+    // Move the pids
+    for (int i=0;i<how_much;i++) {
+        if (pids_to_move[i] > 0) { // Redundant check?
+            new_tile = get_tile(cpus, pids_per_tile, write_miss_rates);
+            migrate_process(pids_to_move[i], new_tile);
+        }
     }
 }
 
@@ -127,11 +129,13 @@ void cool_down_tile(int tilenum) {
  * Moves a process a new tile.
  */
 void migrate_process(int pid, int newtile) {
-    int oldtile = get_tile_num(pidtable, pid);
+    int oldtile = get_tile_num(table, pid);
     // set pid to new cpu
     tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus, newtile)), pid);
-    // Reorder pid_table
-    set_tile_num(pidtable, pid, newtile);
+
+    // Reorder proc_table
+    move_pid_to_tile(table, pid, newtile);
+
     // Reorder tile allocation array
     pids_per_tile[oldtile]--;
     pids_per_tile[newtile]++;
@@ -139,14 +143,3 @@ void migrate_process(int pid, int newtile) {
            pid, oldtile, newtile);
 }
 
-/*
- * THIS CODE IS RETARDED
- */
-int get_first_pid_from_tile(int tile_num) {
-    for (int i=650;i<720;i++) {
-        if (tile_num == get_tile_num(pidtable, i)) {
-            return i;
-        }
-    }
-    return -1;
-}

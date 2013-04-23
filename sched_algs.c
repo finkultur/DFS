@@ -13,6 +13,7 @@
 #include <tmc/task.h>
 
 #include "perfcount.h"
+#include "proc_table.h"
 #include "sched_algs.h"
 
 /*
@@ -21,11 +22,11 @@
  * Tries to get an empty tile, otherwise find the tile with least data cache
  * write miss rate.
  */
-int get_tile(cpu_set_t *cpus, int *tileAlloc, float *wr_miss_rates) {
+int get_tile(cpu_set_t *cpus, proc_table table, float *wr_miss_rates) {
     int num_of_cpus = tmc_cpus_count(cpus);
     printf("get_tile: got cpu count %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
-    int empty_tile = get_empty_tile(num_of_cpus, tileAlloc);
+    int empty_tile = get_empty_tile(num_of_cpus, table);
     if (empty_tile >= 0) {
         return empty_tile;
     }
@@ -33,10 +34,10 @@ int get_tile(cpu_set_t *cpus, int *tileAlloc, float *wr_miss_rates) {
     // Otherwise, calculate the best tile through multiplying the tile's miss
     // rate by the number of processes running on that tile. 
     int best_tile = 0;
-    float min_val = tileAlloc[0] * wr_miss_rates[0];
+    float min_val = get_pid_count(table, 0) * wr_miss_rates[0];
     int temp_val;
     for (int i=1;i<num_of_cpus;i++) {
-        temp_val = tileAlloc[i] * wr_miss_rates[i]; 
+        temp_val = get_pid_count(table, i) * wr_miss_rates[i]; 
         if (temp_val < min_val) {
             best_tile = i;
             min_val = temp_val; 
@@ -50,9 +51,9 @@ int get_tile(cpu_set_t *cpus, int *tileAlloc, float *wr_miss_rates) {
  * Returns an empty tile (if there is one).
  * Returns -1 if no tile is empty.
  */
-int get_empty_tile(int num_of_cpus, int *tileAlloc) {
+int get_empty_tile(int num_of_cpus, proc_table table) {
     for (int i=0;i<num_of_cpus;i++) {
-        if (tileAlloc[i] == 0) {
+        if (get_pid_count(table, i) == 0) {
             return i;
         }
     }
@@ -62,14 +63,14 @@ int get_empty_tile(int num_of_cpus, int *tileAlloc) {
 /*
  * Returns the tile with least processes running.
  */
-int get_least_occupied_tile(int num_of_cpus, int *tileAlloc) {
+int get_least_occupied_tile(int num_of_cpus, proc_table table) {
     int best_tile = 0;
-    int min_val = tileAlloc[0];
+    int min_val = get_pid_count(table, 0);
 
     for (int i=1;i<num_of_cpus;i++) {
-        if (tileAlloc[i] < min_val) {
+        if (get_pid_count(i) < min_val) {
             best_tile = i;
-            min_val = tileAlloc[i];
+            min_val = get_pid_count(table, i) 
         }
     }
     return best_tile;

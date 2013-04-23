@@ -1,288 +1,386 @@
 /* pid_table.c
  *
- * Implementation of the pid_table module. 
+ * Implementation of the pid_table module.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #include "pid_table.h"
 
-// Table struct:
-struct pid_table_struct
+/* Each table entry is represented by an entry_struct. This data type records a
+ * process ID and the number of the tile allocated to the process. */
+struct entry_struct
 {
-    struct pid_entry_struct **data;
-    size_t size;
-    int count;
+	pid_t pid;
+	unsigned int cpu;
 };
 
-// Table entry struct:
-struct pid_entry_struct
+/* Each index is represented by an index_struct. This data type holds the
+ * vector of data buckets, the number of available buckets and a count of the
+ * number of entries stored at the index. */
+struct index_struct
 {
-    pid_t pid;
-    int tile_num;
-    struct pid_entry_struct *next;
-    struct pid_entry_struct *prev;
+	size_t entry_count;
+	size_t bucket_count;
+	struct entry_struct *buckets;
 };
 
-// Get the hashed table index for the specified pid:
-int hash_value(pid_table table, pid_t pid)
+/* A pid_table instance is represented by the table_struct. This data type
+ * contains the hash index vector and the size of the index. It also the
+ * minimum number of buckets as specified on table creation. */
+struct table_struct
 {
-    return pid % table->size;
-}
+	size_t index_size;
+	size_t min_buckets;
+	struct index_struct *index;
+};
 
-// Create new table:
-pid_table create_pid_table(size_t size)
+// Function declarations, see below:
+static inline int hash_value(pid_table table, pid_t pid);
+static int insert_entry(pid_table table, pid_t pid, unsigned int cpu);
+static int remove_entry(pid_table table, pid_t pid);
+static int grow_bucket_vector(pid_table table, int table_index);
+static int shrink_bucket_vector(pid_table table, int table_index);
+
+// Create a new table:
+pid_table create_pid_table(size_t index_size, size_t bucket_count)
 {
-    int index;
-    struct pid_table_struct *new_table;
-    if (size <= 0)
-    {
-        return NULL ;
-    }
-    // Allocate table struct, return on error:
-    new_table = malloc(sizeof(struct pid_table_struct));
-    if (new_table == NULL )
-    {
-        return NULL ;
-    }
-    // Allocate data array (entry pointers), return on error:
-    new_table->data = malloc(size * sizeof(struct pid_entry_struct*));
-    if (new_table->data == NULL )
-    {
-        free(new_table);
-        return NULL ;
-    }
-    new_table->size = size;
-    new_table->count = 0;
-    // Init data array with NULL-pointers:
-    for (index = 0; index < size; index++)
-    {
-        new_table->data[index] = NULL;
-    }
-    return new_table;
+	int table_index;
+	struct table_struct *new_table;
+	struct index_struct *new_index;
+	struct entry_struct *new_buckets;
+
+	if (index_size == 0 || bucket_count == 0)
+	{
+		return NULL ;
+	}
+	// Allocate table, return on error:
+	new_table = malloc(sizeof(struct table_struct));
+	if (new_table == NULL )
+	{
+		return NULL ;
+	}
+	// Allocate hash index, return on error:
+	new_index = malloc(index_size * sizeof(struct index_struct));
+	if (new_index == NULL )
+	{
+		return NULL ;
+	}
+	// Initialize table and index, allocate data buckets. Return on error:
+	new_table->index_size = index_size;
+	new_table->min_buckets = bucket_count;
+	new_table->index = new_index;
+	for (table_index = 0; table_index < index_size; table_index++)
+	{
+		new_table->index[table_index].bucket_count = bucket_count;
+		new_table->index[table_index].entry_count = 0;
+		new_buckets = malloc(bucket_count * sizeof(struct entry_struct));
+		if (new_buckets == NULL )
+		{
+			return NULL ;
+		}
+		new_table->index[table_index].buckets = new_buckets;
+	}
+	return new_table;
 }
 
 // Deallocate table and all entries:
 void destroy_pid_table(pid_table table)
 {
-    int index;
-    struct pid_entry_struct *entry_itr, *next_itr;
-    if (table == NULL )
-    {
-        return;
-    }
-    if (table->count == 0) // Table empty?
-    {
-        free(table->data);
-        free(table);
-    }
-    else
-    {
-        // Free entries at all tabled indices:
-        for (index = 0; index < table->size; index++)
-        {
-            if (table->data[index] != NULL )
-            {
-                entry_itr = table->data[index];
-                while (entry_itr != NULL )
-                {
-                    next_itr = entry_itr->next;
-                    free(entry_itr);
-                    entry_itr = next_itr;
-                }
-            }
-        }
-        free(table->data);
-        free(table);
-    }
-}
+	int table_index;
 
-// Return table size:
-size_t get_size(pid_table table)
-{
-    if (table != NULL )
-    {
-        return table->size;
-    }
-    return -1;
-}
-
-// Return table count:
-int get_count(pid_table table)
-{
-    if (table != NULL )
-    {
-        return table->count;
-    }
-    return -1;
+	if (table == NULL )
+	{
+		return;
+	}
+	// Deallocate data bucket vectors:
+	for (table_index = 0; table_index < table->index_size; table_index++)
+	{
+		free(table->index[table_index].buckets);
+	}
+	// Deallocate hash index:
+	free(table->index);
+	// Deallocate table:
+	free(table);
 }
 
 // Add new pid to table:
-int add_pid(pid_table table, pid_t pid, int tile_num)
+int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu)
 {
-    int hash_index;
-    struct pid_entry_struct *new_entry, *entry_itr;
-    // Allocate entry struct:
-    new_entry = malloc(sizeof(struct pid_entry_struct));
-    if (new_entry == NULL )
-    {
-        return -1;
-    }
-    // Init entry:
-    new_entry->pid = pid;
-    new_entry->tile_num = tile_num;
-    new_entry->next = NULL;
-    new_entry->prev = NULL;
-    // Get table index for entry:
-    hash_index = hash_value(table, pid);
-    // Table empty at index?
-    if (table->data[hash_index] == NULL )
-    {
-        table->data[hash_index] = new_entry;
-    }
-    else
-    {
-        // Find last entry at index and insert new entry:
-        entry_itr = table->data[hash_index];
-        while (entry_itr->next != NULL )
-        {
-            entry_itr = entry_itr->next;
-        }
-        entry_itr->next = new_entry;
-        new_entry->prev = entry_itr;
-    }
-    table->count++;
-    return 0;
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Add entry to table:
+	return insert_entry(table, pid, cpu);
 }
 
-// Remove pid:
-int remove_pid(pid_table table, pid_t pid)
+// Remove pid from table:
+int remove_pid_from_pid_table(pid_table table, pid_t pid)
 {
-    int hash_index;
-    struct pid_entry_struct *entry_itr;
-    // Get hashed table index:
-    hash_index = hash_value(table, pid);
-    // Table empty at index?
-    if (table->data[hash_index] == NULL )
-    {
-        return -1;
-    }
-    // Init iterator:
-    entry_itr = table->data[hash_index];
-    // Search for an entry with equal pid in the list at hashed index:
-    while (entry_itr->pid != pid)
-    {
-        entry_itr = entry_itr->next;
-        // Return if end of list reached:
-        if (entry_itr == NULL )
-        {
-            return -1;
-        }
-    }
-    // First entry in list at index:
-    if (entry_itr->prev == NULL )
-    {
-        table->data[hash_index] = entry_itr->next;
-        if (entry_itr->next != NULL )
-        {
-            entry_itr->next->prev = NULL;
-        }
-    }
-    else
-    {
-        entry_itr->prev->next = entry_itr->next;
-        // If not last entry in list:
-        if (entry_itr->next != NULL )
-        {
-            entry_itr->next->prev = entry_itr->prev;
-        }
-    }
-    // Deallocate entry:
-    free(entry_itr);
-    table->count--;
-    return 0;
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Remove entry from table:
+	return remove_entry(table, pid);
 }
 
-// Get tile_num for pid:
-int get_tile_num(pid_table table, pid_t pid)
+//Get tile number associated with specified pid:
+int get_cpu(pid_table table, pid_t pid)
 {
-    int hash_index;
-    struct pid_entry_struct *entry_itr;
-    // Get hashed table index:
-    hash_index = hash_value(table, pid);
-    // Search list at table index for a matching entry:
-    entry_itr = table->data[hash_index];
-    // Loop to end of list:
-    while (entry_itr != NULL )
-    {
-        // Return if mathching entry found:
-        if (entry_itr->pid == pid)
-        {
-            return entry_itr->tile_num;
-        }
-        entry_itr = entry_itr->next;
-    }
-    // Pid not found:
-    return -1;
+	int table_index, bucket_index, low_limit, high_limit;
+
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find bucket index for entry (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Return when a matching entry is found:
+			return table->index[table_index].buckets[bucket_index].cpu;
+		}
+	}
+	// No matching entry found, indicate error:
+	return -1;
 }
 
-// Set tile_num for specified pid:
-int set_tile_num(pid_table table, pid_t pid, int tile_num)
+// Set tile number for specified pid:
+int set_cpu(pid_table table, pid_t pid, unsigned int cpu)
 {
-    int hash_index;
-    struct pid_entry_struct *entry_itr;
-    // Get hashed table index:
-    hash_index = hash_value(table, pid);
-    // Search list at table index for a matching entry:
-    entry_itr = table->data[hash_index];
-    while (entry_itr != NULL)
-    {
-        // Update tile_num and return if matching entry is found:
-        if (entry_itr->pid == pid)
-        {
-            entry_itr->tile_num = tile_num;
-            return 0;
-        }
-        entry_itr = entry_itr->next;
-    }
-    // Pid not found:
-    return -1;
+	int table_index, bucket_index, low_limit, high_limit;
+
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find bucket index for entry (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Return when a matching entry is found:
+			table->index[table_index].buckets[bucket_index].cpu = cpu;
+			return 0;
+		}
+	}
+	// No matching entry found, indicate error:
+	return -1;
 }
 
-// TESTING
-// Prints table to standard output:
-void print_table(pid_table table)
+/* Returns the hash value for the specified process ID. This value is simply
+ * calculated as the modulo of the process ID and the table index size. */
+static inline int hash_value(pid_table table, pid_t pid)
 {
-    int n;
-    struct pid_entry_struct *itr;
+	return pid % table->index_size;
+}
 
-    printf("Printing table:\n");
+/* Inserts a new entry to table. Entries inserted are kept sorted according to
+ * process ID. This allows fast binary searching of the data buckets. */
+static int insert_entry(pid_table table, pid_t pid, unsigned int cpu)
+{
+	int table_index, bucket_index, shift_index, low_limit, high_limit;
 
-    for (n = 0; n < table->size; n++)
-    {
-        if (table->data[n] == NULL )
-        {
-            printf("table index %i: NULL\n", n);
-        }
-        else
-        {
-            printf("table index %i: ", n);
-            itr = table->data[n];
-            while (itr != NULL )
-            {
-                if (itr->next != NULL )
-                {
-                    printf("(pid: %i , tile_num: %i) -> ", itr->pid,
-                            itr->tile_num);
-                }
-                else
-                {
-                    printf("(pid: %i , tile_num: %i)\n", itr->pid,
-                            itr->tile_num);
-                }
-                itr = itr->next;
-            }
-        }
-    }
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find bucket index for new entry (binary search):
+	bucket_index = 0;
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Move lower bound when existing entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Move upper bound when existing entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Break if existing entry is equal (should not happen...):
+			break;
+		}
+	}
+	// If bucket vector is not empty, index may need to be adjusted:
+	if (table->index[table_index].entry_count != 0
+			&& table->index[table_index].buckets[bucket_index].pid < pid)
+	{
+		bucket_index++;
+	}
+	// Grow bucket vector to ensure space:
+	if (grow_bucket_vector(table, table_index) != 0)
+	{
+		return -1;
+	}
+	// Shift entries upwards if not inserting on last index in bucket vector:
+	if (bucket_index < table->index[table_index].entry_count)
+	{
+		shift_index = table->index[table_index].entry_count;
+		while (shift_index > bucket_index)
+		{
+			table->index[table_index].buckets[shift_index] =
+					table->index[table_index].buckets[shift_index - 1];
+			shift_index--;
+		}
+	}
+	// Insert new entry:
+	table->index[table_index].entry_count++;
+	table->index[table_index].buckets[bucket_index].pid = pid;
+	table->index[table_index].buckets[bucket_index].cpu = cpu;
+	return 0;
+}
+
+/* Removes an entry with a matching process ID (only one such entry should ever
+ * exist). Any entries following the removed entry are shifted one step in the
+ * bucket vector to eliminate gaps. */
+static int remove_entry(pid_table table, pid_t pid)
+{
+	int table_index, bucket_index, shift_index, low_limit, high_limit;
+
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find entry bucket index (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Break when a matching entry is found:
+			break;
+		}
+	}
+	// Return with error if no matching entry found:
+	if (low_limit > high_limit)
+	{
+		return -1;
+	}
+	// Remove found entry:
+	// If not last entry in bucket vector, shift subsequent entries:
+	if (bucket_index != table->index[table_index].entry_count - 1)
+	{
+		shift_index = bucket_index;
+		while (shift_index < table->index[table_index].entry_count - 1)
+		{
+			table->index[table_index].buckets[shift_index] =
+					table->index[table_index].buckets[shift_index + 1];
+			shift_index++;
+		}
+	}
+	table->index[table_index].entry_count--;
+	// Shrink bucket vector and return:
+	return shrink_bucket_vector(table, table_index);
+}
+
+/* Doubles the size of the bucket vector at the specified index if all buckets
+ * are full. */
+static int grow_bucket_vector(struct table_struct *table, int table_index)
+{
+	size_t new_bucket_count;
+	struct entry_struct *new_buckets;
+
+	// Check if bucket vector should be grown (full), otherwise return:
+	if (table->index[table_index].entry_count
+			< table->index[table_index].bucket_count)
+	{
+		return 0;
+	}
+	// Double bucket count:
+	new_bucket_count = 2 * table->index[table_index].bucket_count;
+	// Reallocate bucket vector:
+	new_buckets = realloc(table->index[table_index].buckets,
+			new_bucket_count * sizeof(struct entry_struct));
+	if (new_buckets == NULL )
+	{
+		return -1;
+	}
+	table->index[table_index].bucket_count = new_bucket_count;
+	table->index[table_index].buckets = new_buckets;
+	return 0;
+}
+
+/* Shrinks (halves) the bucket vector at the specified index until it is at
+ * least 25% full. */
+static int shrink_bucket_vector(pid_table table, int table_index)
+{
+	size_t new_bucket_count;
+	struct entry_struct *new_buckets;
+
+	// Check if bucket vector size should be shrunk, otherwise return:
+	if (table->index[table_index].bucket_count <= table->min_buckets
+			|| table->index[table_index].entry_count
+					>= (table->index[table_index].bucket_count / 4))
+	{
+		return 0;
+	}
+	// Calculated new bucket count:
+	new_bucket_count = table->index[table_index].bucket_count;
+	do
+	{
+		new_bucket_count = new_bucket_count / 2;
+	} while (new_bucket_count > table->min_buckets
+			&& (new_bucket_count / 4) > table->index[table_index].entry_count);
+	// Reallocate bucket vector:
+	new_buckets = realloc(table->index[table_index].buckets,
+			new_bucket_count * sizeof(struct entry_struct));
+	if (new_buckets == NULL )
+	{
+		return -1;
+	}
+	table->index[table_index].bucket_count = new_bucket_count;
+	table->index[table_index].buckets = new_buckets;
+	return 0;
 }
