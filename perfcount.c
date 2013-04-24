@@ -53,3 +53,18 @@ int setup_all_counters(cpu_set_t *cpus) {
     }
     return 0; 
 }
+
+/*
+ * Clear counters for all tiles in cpu set
+ */
+int clear_all_counters(cpu_set_t *cpus) {
+    int num_of_cpus = tmc_cpus_count(cpus);
+    for (int i=0;i<num_of_cpus;i++) {
+        if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus, i)) < 0) {
+            tmc_task_die("failure in 'tmc_set_my_cpu'");
+            return -1;
+        }
+        clear_counters();
+    }
+    return 0;
+}

@@ -21,3 +21,4 @@ void setup_counters(int event1, int event2, int event3, int event4);
 void read_counters(int* event1, int* event2, int* event3, int* event4);
 void clear_counters(void);
 int setup_all_counters(cpu_set_t *cpus);
+int clear_all_counters(cpu_set_t *cpus);
