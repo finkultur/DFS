@@ -11,7 +11,6 @@
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 
-#include "pid_table.h"
 #include "perfcount.h"
 
 void
