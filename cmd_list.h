@@ -21,6 +21,8 @@ struct cmd_entry_struct
 	char *dir;  // Working directory
 	char *cmd;  // Command name
 	char **argv;    // Argument vector
+    char *new_stdin;    // Redirect stdin?
+    char *new_stdout;   // Redirect stdout?
 };
 
 /* Type definition of a command list. */

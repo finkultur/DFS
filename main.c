@@ -12,6 +12,8 @@
 #include <sys/time.h>
 #include <sched.h>
 #include <pthread.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 // Tilera 
 #include <tmc/cpus.h>
@@ -25,7 +27,7 @@
 #include "perfcount.h"
 #include "proc_table.h"
 
-#define NUM_OF_CPUS 8 
+#define NUM_OF_CPUS 16 
 #define TABLE_SIZE 8
 
 // RTS handlers:
@@ -189,24 +191,34 @@ int start_process() {
             if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
             }
-            
-               
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
             printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, wr_miss_rate: %f\n", 
                    mypid, mycurcpu, tile_num, get_pid_count(table, tile_num), wr_miss_rates[tile_num]);
-                        
-
+           
+            // Change working directory 
             chdir(cmd->dir);
+     
+            // Redirect stdin 
+            if (cmd->new_stdin != NULL) {
+                char path[512];
+                strcpy(path, cmd->dir);
+                strcpy(path, cmd->new_stdin);
+                int fd = open(path, O_RDONLY);
+                if (fd == -1) {
+                    printf("failed to open file while redirecting stdin\n");
+                    return 1;
+                }
+                dup2(fd, 0);
+            }
+
             int status = execv(cmd->cmd, (char **)cmd->argv);
             printf("execvp failed with status %d\n", status);
             return 1;
         }
         else {
-            // Add pid to table
+            // Add pid to proc table
             add_pid(table, pid, tile_num);
-            // Print table for debugging purposes
-            //print_table(table);
         }
         remove_first(list);
     }
@@ -222,15 +234,6 @@ int start_process() {
     else {
         last_program_started = 1;
     }
-    // Disable timer. I got some weird segmentation fault with this:
-    /*else { 
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 0;
-        timer.it_interval = timeout;
-        timer.it_value = timeout;
-        counter = cmd->start_time;
-        setitimer(ITIMER_REAL, &timer, NULL);
-    }*/
     return 0;
 }
 

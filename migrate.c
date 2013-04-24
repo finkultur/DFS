@@ -90,7 +90,7 @@ void *poll_pmcs(void *struct_with_all_args) {
         reset--;
         if (reset == 0) {
             printf("Resetting performance counters.\n");
-            clear_all_counters();
+            clear_all_counters(cpus);
             reset = READS_BEFORE_RESET;
         }
         print_wr_miss_rates();

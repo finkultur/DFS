@@ -248,6 +248,28 @@ static struct cmd_entry_struct *parse_line(char *line)
 	}
 	// Set NULL-pointer at last index of argv:
 	new_entry->argv[arg_index] = NULL;
+
+    /* This is some ugly code to redirect stdin/stdout.
+     * It just makes it possible to do "$ cmd < input.txt".
+     * Can't handle any arguments other than this. 
+     *
+     * Oh and you have to choose if you want to redirect stdin OR stdout!
+     * */
+    if (*new_entry->argv[1] == '<' && new_entry->argv[2] != NULL) {
+        new_entry->new_stdin = new_entry->argv[2];
+        free(new_entry->argv[1]);
+        new_entry->argv[1] = NULL;
+    }
+    else if (*new_entry->argv[1] == '>' && new_entry->argv[2] != NULL) {
+        new_entry->new_stdout = new_entry->argv[2];
+        free(new_entry->argv[1]);
+        new_entry->argv[1] = NULL;
+    }
+    else {
+        new_entry->new_stdout = NULL;
+        new_entry->new_stdin = NULL;
+    }
+
 	// Return entry:
 	return new_entry;
 }

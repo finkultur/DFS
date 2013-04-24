@@ -1,1 +1,1 @@
-0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/433.milc/run/build_base_compsys.0000/ milc 
+0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/433.milc/run/build_base_compsys.0000/ milc < ../../data/test/input/su3imp3.in 
