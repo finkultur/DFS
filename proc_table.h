@@ -6,8 +6,15 @@
 #define _PROC_TABLE_H
 
 #include <unistd.h>
+#include "tile_table.h"
+#include "pid_table.h"
 
-struct proc_table_struct;
+//struct proc_table_struct;
+struct proc_table_struct {
+    tile_table tile_table;
+    pid_table pid_table;
+    int *miss_counters;
+};
 
 typedef struct proc_table_struct *proc_table;
 

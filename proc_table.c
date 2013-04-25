@@ -12,11 +12,6 @@
 #define START_PIDS_PER_INDEX 32
 #define PID_TABLE_INDEX_SIZE 64
 
-struct proc_table_struct {
-	tile_table tile_table;
-	pid_table pid_table;
-};
-
 proc_table create_proc_table(size_t num_tiles) {
 	proc_table table;
 
@@ -28,6 +23,12 @@ proc_table create_proc_table(size_t num_tiles) {
     }
     if ((table->tile_table = create_tile_table(num_tiles, START_PIDS_PER_TILE)) == NULL) {
         return NULL;
+    }
+    if ((table->miss_counters = malloc(sizeof(int)*num_tiles)) == NULL) {
+        return NULL;
+    }
+    for (int i=0;i<num_tiles;i++) {
+        table->miss_counters[i] = 0;
     }
 	return table;
 }
@@ -88,3 +89,4 @@ int get_pid_vector(proc_table table, int tile_num, pid_t *array_of_pids, int num
 int get_tile_num(proc_table table, pid_t pid) {
     return get_cpu(table->pid_table, pid);
 }
+

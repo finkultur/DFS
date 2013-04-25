@@ -17,8 +17,8 @@
 #include "migrate.h"
 
 #define POLLING_INTERVAL 10
-#define CONTENTION_LIMIT 0.58 // Totally arbitrary
-#define READS_BEFORE_RESET 3 // Reset counters every THIS*POLLING_INTERVAL seconds
+#define TH1 50000
+#define TH2 100000
 
 cpu_set_t *cpus;
 int num_of_cpus;
@@ -39,7 +39,7 @@ proc_table table;
  */
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    int physical_tile;
+    int all_misses;
 
     struct poll_thread_struct *data;
     data = (struct poll_thread_struct *) struct_with_all_args;
@@ -58,8 +58,6 @@ void *poll_pmcs(void *struct_with_all_args) {
         return (void *) -1;
     }
 
-
-    int reset = READS_BEFORE_RESET;
     // Read counters and update table every X seconds
     while(1) {
         for(int i=0;i<num_of_cpus;i++) {
@@ -70,30 +68,20 @@ void *poll_pmcs(void *struct_with_all_args) {
             }
             // Read counters
             read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-            physical_tile = tmc_cpus_get_my_current_cpu();
-            printf("Logical/Physical Tile %i/%i:", i, physical_tile); 
-            printf("wr_miss %i, wr_cnt %i, drd_miss %i, drd_cnt %i\n",
-                   wr_miss, wr_cnt, drd_miss, drd_cnt);
-            if (wr_cnt != 0) {
-                write_miss_rates[i] = ((float) wr_miss) / wr_cnt;
-                // If value is over CONTENTION_LIMIT, "cool down" tile
-                if ((get_pid_count(table,i) * write_miss_rates[i]) > CONTENTION_LIMIT) {
-                    printf("Cooool down please!\n");
-                    cool_down_tile(i, 1); // Cool down by 1 Unit
-                }
+
+            // Update miss counters
+            all_misses = wr_miss+drd_miss;
+            if (all_misses > TH2) {
+                table->miss_counters[i] = table->miss_counters[i] + 2;
             }
-            if (drd_cnt != 0) {
-                read_miss_rates[i] = ((float) drd_miss) / drd_cnt;
+            else if (all_misses > TH1) {
+                table->miss_counters[i]++;
             }
+            else {
+                table->miss_counters[i]--;
+            }
+            clear_counters();
         }
-        // We reset all performance counters every x iteration
-        reset--;
-        if (reset == 0) {
-            printf("Resetting performance counters.\n");
-            clear_all_counters(cpus);
-            reset = READS_BEFORE_RESET;
-        }
-        print_wr_miss_rates();
         sleep(POLLING_INTERVAL);
     }
 
@@ -119,7 +107,7 @@ void cool_down_tile(int tilenum, int how_much) {
     // Move the pids
     for (int i=0;i<how_much;i++) {
         if (pids_to_move[i] > 0) { // Redundant check?
-            new_tile = get_tile(cpus, table, write_miss_rates);
+            new_tile = get_tile(cpus, table);
             migrate_process(pids_to_move[i], new_tile);
         }
     }

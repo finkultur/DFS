@@ -181,7 +181,7 @@ int start_process() {
  
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
-        int tile_num = get_tile(&cpus, table, wr_miss_rates);
+        int tile_num = get_tile(&cpus, table);
 
         int pid = fork();
         if (pid < 0) {
