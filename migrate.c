@@ -20,7 +20,7 @@
 #define TH1 50000
 #define TH2 100000
 
-cpu_set_t *cpus;
+cpu_set_t *cpus_ptr;
 int num_of_cpus;
 float *write_miss_rates;
 float *read_miss_rates;
@@ -47,13 +47,13 @@ void *poll_pmcs(void *struct_with_all_args) {
     table = data->proctable;
     write_miss_rates = data->wr_miss_rates;
     read_miss_rates = data->drd_miss_rates;
-    cpus = data->cpus;
+    cpus_ptr = data->cpus;
 
-    num_of_cpus = tmc_cpus_count(cpus);
+    num_of_cpus = tmc_cpus_count(cpus_ptr);
     printf("\nNUMBER OF CPUS: %i\n", num_of_cpus);
 
     // Setup all performance counters on every initialized tile
-    if (setup_all_counters(cpus) != 0) {
+    if (setup_all_counters(cpus_ptr) != 0) {
         printf("setup_all_counters failed\n");
         return (void *) -1;
     }
@@ -62,7 +62,7 @@ void *poll_pmcs(void *struct_with_all_args) {
     while(1) {
         for(int i=0;i<num_of_cpus;i++) {
             // Switch to tile i
-            if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus, i)) < 0) {
+            if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus_ptr, i)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
                 return (void*) -1;
             }
@@ -80,6 +80,8 @@ void *poll_pmcs(void *struct_with_all_args) {
             else {
                 table->miss_counters[i]--;
             }
+            maybe_migrate(table->miss_counters[i], i);            
+
             clear_counters();
         }
         sleep(POLLING_INTERVAL);
@@ -87,11 +89,23 @@ void *poll_pmcs(void *struct_with_all_args) {
 
 }
 
+
+/*
 void print_wr_miss_rates() {
     printf("Wr miss rates:\n");
     for (int i=0;i<num_of_cpus;i++) {
         printf("Tile %i: Processes %i, Write miss rate is: %f\n", 
                i, get_pid_count(table, i), write_miss_rates[i]);
+    }
+}
+*/
+
+void maybe_migrate(int miss, int tilenum) {
+    if (miss > 5) {
+        cool_down_tile(tilenum, 1);
+    }
+    else if (miss > 10) {
+        cool_down_tile(tilenum, 2);
     }
 }
 
@@ -105,9 +119,9 @@ void cool_down_tile(int tilenum, int how_much) {
     int new_tile;
 
     // Move the pids
-    for (int i=0;i<how_much;i++) {
+    for (int i=0;(i<how_much && i<get_pid_count(table, tilenum));i++) {
         if (pids_to_move[i] > 0) { // Redundant check?
-            new_tile = get_tile(cpus, table);
+            new_tile = get_tile(cpus_ptr, table);
             migrate_process(pids_to_move[i], new_tile);
         }
     }
@@ -119,7 +133,7 @@ void cool_down_tile(int tilenum, int how_much) {
 void migrate_process(int pid, int newtile) {
     int oldtile = get_tile_num(table, pid);
     // set pid to new cpu
-    tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus, newtile)), pid);
+    tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus_ptr, newtile)), pid);
 
     // Reorder proc_table
     move_pid_to_tile(table, pid, newtile);

@@ -27,7 +27,7 @@
 #include "perfcount.h"
 #include "proc_table.h"
 
-#define NUM_OF_CPUS 16 
+#define NUM_OF_CPUS 6 
 #define TABLE_SIZE 8
 
 // RTS handlers:
@@ -83,7 +83,6 @@ int main(int argc, char *argv[]) {
     if (tmc_cpus_count(&cpus) != NUM_OF_CPUS) {
         tmc_task_die("Got wrong number of cpus: %i requested, got %i", NUM_OF_CPUS, tmc_cpus_count(&cpus));
     }
-
     // NOW DONE IN POLL_PMC THREAD!
     // Setup all performance counters on every initialized tile
     /*if (setup_all_counters(&cpus) != 0) {
@@ -98,7 +97,7 @@ int main(int argc, char *argv[]) {
         printf("Failed to create command list from file: %s\n", argv[1]);
         return 1;
     }
- 
+
     // Define a struct containing data to be sent to thread
     struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
     data->proctable = table;
@@ -124,13 +123,14 @@ int main(int argc, char *argv[]) {
     
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
-    
+    printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
     // While the last process hasn't started and children is still alive,
     // reap the dying children.
     int child_pid;
     int child_tile_num;
     while(children_is_still_alive() || last_program_started == 0) {
 
+        //print_processes(table);
         // Print reported miss rate
         /*for (int i=0;i<NUM_OF_CPUS;i++) {
             printf("tile %i's miss rate is %f\n", i, wr_miss_rates[i]);
@@ -251,3 +251,9 @@ int children_is_still_alive() {
     return 0;
 }
 
+void print_processes(proc_table table) {
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        printf("Logical tile %i: %i processes\n", i, get_pid_count(table, i));
+
+    }
+}
