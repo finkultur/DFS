@@ -53,6 +53,7 @@ int get_tile_by_miss_rate(cpu_set_t *cpus, proc_table table, float *wr_miss_rate
 
 int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
     int num_of_cpus = tmc_cpus_count(cpus);
+    printf("get_tile_from_counters: CPU COUNT %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
     int empty_tile = get_empty_tile(num_of_cpus, table);
     if (empty_tile >= 0) {

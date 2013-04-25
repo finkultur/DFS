@@ -27,9 +27,12 @@ proc_table create_proc_table(size_t num_tiles) {
     if ((table->miss_counters = malloc(sizeof(int)*num_tiles)) == NULL) {
         return NULL;
     }
+    table->num_tiles = num_tiles;
     for (int i=0;i<num_tiles;i++) {
         table->miss_counters[i] = 0;
     }
+    table->total_miss_count = 0;
+    table->avg_miss_count = 0.0;
 	return table;
 }
 
@@ -90,3 +93,8 @@ int get_tile_num(proc_table table, pid_t pid) {
     return get_cpu(table->pid_table, pid);
 }
 
+void modify_miss_count(proc_table table, int tile_num, int amount) {
+    table->total_miss_count = table->total_miss_count + amount;
+    table->avg_miss_count = ((float) table->total_miss_count) / table->num_tiles;
+    table->miss_counters[tile_num] = table->miss_counters[tile_num] + amount;
+}

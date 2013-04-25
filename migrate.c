@@ -24,7 +24,6 @@ cpu_set_t *cpus_ptr;
 int num_of_cpus;
 float *write_miss_rates;
 float *read_miss_rates;
-proc_table table;
 
 /*
  * "Thread-function" that polls the performance registers every 
@@ -40,6 +39,7 @@ proc_table table;
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
     int all_misses;
+    proc_table table;
 
     struct poll_thread_struct *data;
     data = (struct poll_thread_struct *) struct_with_all_args;
@@ -72,18 +72,19 @@ void *poll_pmcs(void *struct_with_all_args) {
             // Update miss counters
             all_misses = wr_miss+drd_miss;
             if (all_misses > TH2) {
-                table->miss_counters[i] = table->miss_counters[i] + 2;
+                modify_miss_count(table, i, 2);
             }
             else if (all_misses > TH1) {
-                table->miss_counters[i]++;
+                modify_miss_count(table, i, 1);
             }
-            else {
-                table->miss_counters[i]--;
+            else if (table->miss_counters[i] != 0) {
+                modify_miss_count(table, i, -1);
             }
-            maybe_migrate(table->miss_counters[i], i);            
+            //maybe_migrate(table->miss_counters[i], i);            
 
             clear_counters();
         }
+        lolgrate(table);
         sleep(POLLING_INTERVAL);
     }
 
@@ -91,29 +92,37 @@ void *poll_pmcs(void *struct_with_all_args) {
 
 
 /*
-void print_wr_miss_rates() {
-    printf("Wr miss rates:\n");
-    for (int i=0;i<num_of_cpus;i++) {
-        printf("Tile %i: Processes %i, Write miss rate is: %f\n", 
-               i, get_pid_count(table, i), write_miss_rates[i]);
+ * Only migrate processes if a tile has a miss-count-value higher than
+ * two times the average miss-count-value.
+ */
+void lolgrate(proc_table table) {
+    int miss_cnt;
+    
+    // Debugging
+    printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_count);
+    printf("lolgrate: processes/miss_cnt: ");
+    for (int i=0;i<table->num_tiles;i++) {
+        printf("%i/%i ", i, table->miss_counters[i]);
     }
-}
-*/
+    printf("\n");
 
-void maybe_migrate(int miss, int tilenum) {
-    if (miss > 5) {
-        cool_down_tile(tilenum, 1);
+    // 1.5 and 2 is magic values I just made up
+    for (int i=0;i<table->num_tiles;i++) {
+        miss_cnt = table->miss_counters[i];
+        if (miss_cnt > (1.5*table->avg_miss_count)) {
+            cool_down_tile(table, i, 1);
+        }
+        if (miss_cnt > (2*table->avg_miss_count)) {
+            cool_down_tile(table, i, 2);
+        }
     }
-    else if (miss > 10) {
-        cool_down_tile(tilenum, 2);
-    }
-}
+} 
 
 /*
  * Moves a number of processes from a specified tile to new ones with less
  * contention. 
  */
-void cool_down_tile(int tilenum, int how_much) {
+void cool_down_tile(proc_table table, int tilenum, int how_much) {
     pid_t pids_to_move[how_much];
     get_pid_vector(table, tilenum, pids_to_move, how_much);
     int new_tile;
@@ -122,7 +131,7 @@ void cool_down_tile(int tilenum, int how_much) {
     for (int i=0;(i<how_much && i<get_pid_count(table, tilenum));i++) {
         if (pids_to_move[i] > 0) { // Redundant check?
             new_tile = get_tile(cpus_ptr, table);
-            migrate_process(pids_to_move[i], new_tile);
+            migrate_process(table, pids_to_move[i], new_tile);
         }
     }
 }
@@ -130,10 +139,12 @@ void cool_down_tile(int tilenum, int how_much) {
 /*
  * Moves a process a new tile.
  */
-void migrate_process(int pid, int newtile) {
+void migrate_process(proc_table table, int pid, int newtile) {
     int oldtile = get_tile_num(table, pid);
     // set pid to new cpu
-    tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus_ptr, newtile)), pid);
+    if (tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus_ptr, newtile)), pid) < 0) {
+        tmc_task_die("Failure in tmc_cpus_set_task_cpu (in migrate_process)");
+    }
 
     // Reorder proc_table
     move_pid_to_tile(table, pid, newtile);

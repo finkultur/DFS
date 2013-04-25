@@ -83,12 +83,6 @@ int main(int argc, char *argv[]) {
     if (tmc_cpus_count(&cpus) != NUM_OF_CPUS) {
         tmc_task_die("Got wrong number of cpus: %i requested, got %i", NUM_OF_CPUS, tmc_cpus_count(&cpus));
     }
-    // NOW DONE IN POLL_PMC THREAD!
-    // Setup all performance counters on every initialized tile
-    /*if (setup_all_counters(&cpus) != 0) {
-        printf("setup_all_counters failed\n");
-        return 1;
-    }*/
    
     // Initialize proc_table
     table = create_proc_table(NUM_OF_CPUS);
@@ -123,7 +117,7 @@ int main(int argc, char *argv[]) {
     
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
-    printf("cpus_count is: %i\n", tmc_cpus_count(&cpus));
+
     // While the last process hasn't started and children is still alive,
     // reap the dying children.
     int child_pid;
@@ -131,10 +125,6 @@ int main(int argc, char *argv[]) {
     while(children_is_still_alive() || last_program_started == 0) {
 
         //print_processes(table);
-        // Print reported miss rate
-        /*for (int i=0;i<NUM_OF_CPUS;i++) {
-            printf("tile %i's miss rate is %f\n", i, wr_miss_rates[i]);
-        }*/
 
         // Reap child 
         child_pid = wait(NULL);
@@ -143,9 +133,6 @@ int main(int argc, char *argv[]) {
             remove_pid(table, child_pid);
         }
     }
-
-    // This function (usually) prints performance counters & their miss rate
-    //get_tile_with_min_write_miss_rate(&cpus);
 
     // Print start, end and total time elapsed.
     long long int end_time = time(NULL);
@@ -183,6 +170,10 @@ int start_process() {
         // Try to get an empty tile (or the tile with least contention)
         int tile_num = get_tile(&cpus, table);
 
+        // The shepherd avoids creating a debugger until exec has run
+        // No idea if this a good thing and/or an improvement in performance
+        //tmc_task_assume_impending_exec(1);
+        
         int pid = fork();
         if (pid < 0) {
             return 1; // Fork failed
@@ -193,8 +184,8 @@ int start_process() {
             }
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
-            printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, wr_miss_rate: %f\n", 
-                   mypid, mycurcpu, tile_num, get_pid_count(table, tile_num), wr_miss_rates[tile_num]);
+            printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, tile-miss-counter: %i\n", 
+                   mypid, mycurcpu, tile_num, get_pid_count(table, tile_num)+1, table->miss_counters[tile_num]);
            
             // Change working directory 
             chdir(cmd->dir);
@@ -253,7 +244,8 @@ int children_is_still_alive() {
 
 void print_processes(proc_table table) {
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        printf("Logical tile %i: %i processes\n", i, get_pid_count(table, i));
+        printf("Logical tile %i: %i processes\n, Miss-value: %i", 
+               i, get_pid_count(table, i), table->miss_counters[i]);
 
     }
 }
