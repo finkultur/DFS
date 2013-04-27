@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
 	// Create table:
 	printf("creating table\n");
-	table = create_tile_table(num_cpu, num_pid);
+	table = tt_create_table(num_cpu, num_pid);
 	if (table == NULL )
 	{
 		printf("failed!\n");
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 		cpu = rand() % num_cpu;
 		entry_pid[n] = pid;
 		entry_cpu[n] = cpu;
-		if (add_pid_to_tile_table(table, pid, cpu) != 0)
+		if (tt_add_pid(table, pid, cpu) != 0)
 		{
 			printf("failed!\n");
 			return 1;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 	printf("OK!\n");
 	// Destroy table
 	printf("destroying table\n");
-	destroy_tile_table(table);
+	tt_destroy_table(table);
 	printf("OK!\n");
 	return 0;
 }

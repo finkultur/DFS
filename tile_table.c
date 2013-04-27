@@ -21,7 +21,7 @@ struct index_struct
  * contains the table index vector of tiles. It also holds the number of tiles
  * in the index vector as well as the minimum number of buckets allocated to
  * each index position. */
-struct tile_table_struct
+struct tt_table_struct
 {
 	size_t index_size;
 	size_t min_buckets;
@@ -33,10 +33,10 @@ static int grow_bucket_vector(tile_table table, unsigned int cpu);
 static int shrink_bucket_vector(tile_table table, unsigned int cpu);
 
 // Create a new table:
-tile_table create_tile_table(size_t num_cpu, size_t num_pid)
+tile_table tt_create_table(size_t num_cpu, size_t num_pid)
 {
 	int table_index;
-	struct tile_table_struct *new_table;
+	struct tt_table_struct *new_table;
 	struct index_struct *new_index;
 	pid_t *new_bucket;
 
@@ -45,7 +45,7 @@ tile_table create_tile_table(size_t num_cpu, size_t num_pid)
 		return NULL ;
 	}
 	// Allocate table, return on error:
-	new_table = malloc(sizeof(struct tile_table_struct));
+	new_table = malloc(sizeof(struct tt_table_struct));
 	if (new_table == NULL )
 	{
 		return NULL ;
@@ -75,7 +75,7 @@ tile_table create_tile_table(size_t num_cpu, size_t num_pid)
 }
 
 // Deallocate table and all entries:
-void destroy_tile_table(tile_table table)
+void tt_destroy_table(tile_table table)
 {
 	int table_index;
 	if (table == NULL )
@@ -94,7 +94,7 @@ void destroy_tile_table(tile_table table)
 }
 
 // Add pid to list of running processes on specified tile:
-int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu)
+int tt_add_pid(tile_table table, pid_t pid, unsigned int cpu)
 {
 	if (table == NULL || cpu >= table->index_size
 			|| grow_bucket_vector(table, cpu) != 0)

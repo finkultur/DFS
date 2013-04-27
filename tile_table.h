@@ -16,23 +16,23 @@
 #include <unistd.h>
 
 /* Each table instance is represented by a tile_table_struct. */
-struct tile_table_struct;
+struct tt_table_struct;
 
 /* Typedef for a user handle to a table instance (table pointer). */
-typedef struct tile_table_struct *tile_table;
+typedef struct tt_table_struct *tile_table;
 
 /* Allocates a new table with the specified number of tiles and initial space
  * for process IDs per tile (number of buckets).
  * On success a handle to the table is returned, otherwise NULL. */
-tile_table create_tile_table(size_t num_cpu, size_t num_pid);
+tile_table tt_create_table(size_t num_cpu, size_t num_pid);
 
 /* Destroys the given table by freeing up allocated memory. All table entries
  * are also freed during the operation. */
-void destroy_tile_table(tile_table table);
+void tt_destroy_table(tile_table table);
 
 /* Adds the specified process ID to the list of running processes on the
  * specified tile. On success 0 is returned, otherwise -1. */
-int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu);
+int tt_add_pid(tile_table table, pid_t pid, unsigned int cpu);
 
 /* Removes the specified process ID from the list of running processes on the
  * specified tile. Returns 0 on success, otherwise -1. */
