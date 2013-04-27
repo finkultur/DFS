@@ -9,7 +9,7 @@
 
 /* Each table entry is represented by an entry_struct. This data type records a
  * process ID and the number of the tile allocated to the process. */
-struct entry_struct
+struct pt_entry_struct
 {
 	pid_t pid;
 	unsigned int cpu;
@@ -18,21 +18,21 @@ struct entry_struct
 /* Each index is represented by an index_struct. This data type holds the
  * vector of data buckets, the number of available buckets and a count of the
  * number of entries stored at the index. */
-struct index_struct
+struct pt_index_struct
 {
 	size_t entry_count;
 	size_t bucket_count;
-	struct entry_struct *buckets;
+	struct pt_entry_struct *buckets;
 };
 
 /* A pid_table instance is represented by the table_struct. This data type
  * contains the hash index vector and the size of the index. It also the
  * minimum number of buckets as specified on table creation. */
-struct table_struct
+struct pt_table_struct
 {
 	size_t index_size;
 	size_t min_buckets;
-	struct index_struct *index;
+	struct pt_index_struct *index;
 };
 
 // Function declarations, see below:
@@ -46,22 +46,22 @@ static int shrink_bucket_vector(pid_table table, int table_index);
 pid_table pt_create_table(size_t index_size, size_t bucket_count)
 {
 	int table_index;
-	struct table_struct *new_table;
-	struct index_struct *new_index;
-	struct entry_struct *new_buckets;
+	struct pt_table_struct *new_table;
+	struct pt_index_struct *new_index;
+	struct pt_entry_struct *new_buckets;
 
 	if (index_size == 0 || bucket_count == 0)
 	{
 		return NULL ;
 	}
 	// Allocate table, return on error:
-	new_table = malloc(sizeof(struct table_struct));
+	new_table = malloc(sizeof(struct pt_table_struct));
 	if (new_table == NULL )
 	{
 		return NULL ;
 	}
 	// Allocate hash index, return on error:
-	new_index = malloc(index_size * sizeof(struct index_struct));
+	new_index = malloc(index_size * sizeof(struct pt_index_struct));
 	if (new_index == NULL )
 	{
 		return NULL ;
@@ -74,7 +74,7 @@ pid_table pt_create_table(size_t index_size, size_t bucket_count)
 	{
 		new_table->index[table_index].bucket_count = bucket_count;
 		new_table->index[table_index].entry_count = 0;
-		new_buckets = malloc(bucket_count * sizeof(struct entry_struct));
+		new_buckets = malloc(bucket_count * sizeof(struct pt_entry_struct));
 		if (new_buckets == NULL )
 		{
 			return NULL ;
@@ -327,10 +327,10 @@ static int remove_entry(pid_table table, pid_t pid)
 
 /* Doubles the size of the bucket vector at the specified index if all buckets
  * are full. */
-static int grow_bucket_vector(struct table_struct *table, int table_index)
+static int grow_bucket_vector(struct pt_table_struct *table, int table_index)
 {
 	size_t new_bucket_count;
-	struct entry_struct *new_buckets;
+	struct pt_entry_struct *new_buckets;
 
 	// Check if bucket vector should be grown (full), otherwise return:
 	if (table->index[table_index].entry_count
@@ -342,7 +342,7 @@ static int grow_bucket_vector(struct table_struct *table, int table_index)
 	new_bucket_count = 2 * table->index[table_index].bucket_count;
 	// Reallocate bucket vector:
 	new_buckets = realloc(table->index[table_index].buckets,
-			new_bucket_count * sizeof(struct entry_struct));
+			new_bucket_count * sizeof(struct pt_entry_struct));
 	if (new_buckets == NULL )
 	{
 		return -1;
@@ -357,7 +357,7 @@ static int grow_bucket_vector(struct table_struct *table, int table_index)
 static int shrink_bucket_vector(pid_table table, int table_index)
 {
 	size_t new_bucket_count;
-	struct entry_struct *new_buckets;
+	struct pt_entry_struct *new_buckets;
 
 	// Check if bucket vector size should be shrunk, otherwise return:
 	if (table->index[table_index].bucket_count <= table->min_buckets
@@ -375,7 +375,7 @@ static int shrink_bucket_vector(pid_table table, int table_index)
 			&& (new_bucket_count / 4) > table->index[table_index].entry_count);
 	// Reallocate bucket vector:
 	new_buckets = realloc(table->index[table_index].buckets,
-			new_bucket_count * sizeof(struct entry_struct));
+			new_bucket_count * sizeof(struct pt_entry_struct));
 	if (new_buckets == NULL )
 	{
 		return -1;

@@ -17,10 +17,10 @@
 #include <unistd.h>
 
 /* Each table instance is represented by a table_struct. */
-struct table_struct;
+struct pt_table_struct;
 
 /* Typedef for a user handle to a table instance (table pointer). */
-typedef struct table_struct *pid_table;
+typedef struct pt_table_struct *pid_table;
 
 /* Allocates a new table with the specified sizes for the hash index and the
  * data bucket vectors.
