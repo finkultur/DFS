@@ -3,12 +3,13 @@
  * Implementation of the pid_table module.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "pid_table.h"
 
-/* Each table entry is represented by an pid_struct. This data type records a
+/* Each table entry is represented by an entry_struct. This data type records a
  * process ID and the number of the tile allocated to the process. */
-struct pid_struct
+struct entry_struct
 {
 	pid_t pid;
 	unsigned int cpu;
@@ -21,13 +22,13 @@ struct index_struct
 {
 	size_t entry_count;
 	size_t bucket_count;
-	struct pid_struct *buckets;
+	struct entry_struct *buckets;
 };
 
 /* A pid_table instance is represented by the table_struct. This data type
  * contains the hash index vector and the size of the index. It also the
  * minimum number of buckets as specified on table creation. */
-struct pid_table_struct
+struct table_struct
 {
 	size_t index_size;
 	size_t min_buckets;
@@ -42,19 +43,19 @@ static int grow_bucket_vector(pid_table table, int table_index);
 static int shrink_bucket_vector(pid_table table, int table_index);
 
 // Create a new table:
-pid_table create_pid_table(size_t index_size, size_t bucket_count)
+pid_table pt_create_table(size_t index_size, size_t bucket_count)
 {
 	int table_index;
-	struct pid_table_struct *new_table;
+	struct table_struct *new_table;
 	struct index_struct *new_index;
-	struct pid_struct *new_buckets;
+	struct entry_struct *new_buckets;
 
 	if (index_size == 0 || bucket_count == 0)
 	{
 		return NULL ;
 	}
 	// Allocate table, return on error:
-	new_table = malloc(sizeof(struct pid_table_struct));
+	new_table = malloc(sizeof(struct table_struct));
 	if (new_table == NULL )
 	{
 		return NULL ;
@@ -73,7 +74,7 @@ pid_table create_pid_table(size_t index_size, size_t bucket_count)
 	{
 		new_table->index[table_index].bucket_count = bucket_count;
 		new_table->index[table_index].entry_count = 0;
-		new_buckets = malloc(bucket_count * sizeof(struct pid_struct));
+		new_buckets = malloc(bucket_count * sizeof(struct entry_struct));
 		if (new_buckets == NULL )
 		{
 			return NULL ;
@@ -84,7 +85,7 @@ pid_table create_pid_table(size_t index_size, size_t bucket_count)
 }
 
 // Deallocate table and all entries:
-void destroy_pid_table(pid_table table)
+void pt_destroy_table(pid_table table)
 {
 	int table_index;
 
@@ -104,7 +105,7 @@ void destroy_pid_table(pid_table table)
 }
 
 // Add new pid to table:
-int add_pid(pid_table table, pid_t pid, unsigned int cpu)
+int pt_add_pid(pid_table table, pid_t pid, unsigned int cpu)
 {
 	if (table == NULL )
 	{
@@ -115,7 +116,7 @@ int add_pid(pid_table table, pid_t pid, unsigned int cpu)
 }
 
 // Remove pid from table:
-int remove_pid(pid_table table, pid_t pid)
+int pt_remove_pid(pid_table table, pid_t pid)
 {
 	if (table == NULL )
 	{
@@ -126,7 +127,7 @@ int remove_pid(pid_table table, pid_t pid)
 }
 
 //Get tile number associated with specified pid:
-int get_cpu(pid_table table, pid_t pid)
+int pt_get_cpu(pid_table table, pid_t pid)
 {
 	int table_index, bucket_index, low_limit, high_limit;
 
@@ -164,7 +165,7 @@ int get_cpu(pid_table table, pid_t pid)
 }
 
 // Set tile number for specified pid:
-int set_cpu(pid_table table, pid_t pid, unsigned int cpu)
+int pt_set_cpu(pid_table table, pid_t pid, unsigned int cpu)
 {
 	int table_index, bucket_index, low_limit, high_limit;
 
@@ -237,8 +238,8 @@ static int insert_entry(pid_table table, pid_t pid, unsigned int cpu)
 		}
 		else
 		{
-			// Break if existing entry is equal (should not happen...):
-			break;
+			// Return if equal entry already exist:
+			return -1;
 		}
 	}
 	// If bucket vector is not empty, index may need to be adjusted:
@@ -326,10 +327,10 @@ static int remove_entry(pid_table table, pid_t pid)
 
 /* Doubles the size of the bucket vector at the specified index if all buckets
  * are full. */
-static int grow_bucket_vector(struct pid_table_struct *table, int table_index)
+static int grow_bucket_vector(struct table_struct *table, int table_index)
 {
 	size_t new_bucket_count;
-	struct pid_struct *new_buckets;
+	struct entry_struct *new_buckets;
 
 	// Check if bucket vector should be grown (full), otherwise return:
 	if (table->index[table_index].entry_count
@@ -341,7 +342,7 @@ static int grow_bucket_vector(struct pid_table_struct *table, int table_index)
 	new_bucket_count = 2 * table->index[table_index].bucket_count;
 	// Reallocate bucket vector:
 	new_buckets = realloc(table->index[table_index].buckets,
-			new_bucket_count * sizeof(struct pid_struct));
+			new_bucket_count * sizeof(struct entry_struct));
 	if (new_buckets == NULL )
 	{
 		return -1;
@@ -356,7 +357,7 @@ static int grow_bucket_vector(struct pid_table_struct *table, int table_index)
 static int shrink_bucket_vector(pid_table table, int table_index)
 {
 	size_t new_bucket_count;
-	struct pid_struct *new_buckets;
+	struct entry_struct *new_buckets;
 
 	// Check if bucket vector size should be shrunk, otherwise return:
 	if (table->index[table_index].bucket_count <= table->min_buckets
@@ -374,7 +375,7 @@ static int shrink_bucket_vector(pid_table table, int table_index)
 			&& (new_bucket_count / 4) > table->index[table_index].entry_count);
 	// Reallocate bucket vector:
 	new_buckets = realloc(table->index[table_index].buckets,
-			new_bucket_count * sizeof(struct pid_struct));
+			new_bucket_count * sizeof(struct entry_struct));
 	if (new_buckets == NULL )
 	{
 		return -1;

@@ -18,9 +18,10 @@ int main(int argc, char *argv[])
 	pid_table table;
 
 	// Create table:
-	printf("creating pid_table index size: %i buckets: %i\n", index_size, bucket_count);
-	table = create_pid_table(index_size, bucket_count);
-	if (table == NULL)
+	printf("creating pid_table index size: %i buckets: %i\n", index_size,
+			bucket_count);
+	table = pt_create_table(index_size, bucket_count);
+	if (table == NULL )
 	{
 		printf("failed!\n");
 		return 1;
@@ -35,7 +36,12 @@ int main(int argc, char *argv[])
 		pid = rand();
 		pids[n] = pid;
 		cpu = rand() % num_cpu;
-		if (add_pid(table, pid, cpu) != 0)
+		if (pt_get_cpu(table, pid) != -1)
+		{
+			printf("duplicate pid: %i\n", pid);
+			continue;
+		}
+		if (pt_add_pid(table, pid, cpu) != 0)
 		{
 			printf("failed!\n");
 			return 1;
@@ -46,7 +52,7 @@ int main(int argc, char *argv[])
 	for (n = 0; n < num_entry; n++)
 	{
 		new_cpu = rand() % 64;
-		if (set_cpu(table, pids[n], new_cpu) != 0)
+		if (pt_set_cpu(table, pids[n], new_cpu) != 0)
 		{
 			printf("failed!\n");
 			return 1;
@@ -57,15 +63,14 @@ int main(int argc, char *argv[])
 	printf("removing each entry\n");
 	for (n = 0; n < num_entry; n++)
 	{
-		if (remove_pid(table, pids[n]) != 0)
+		if (pt_remove_pid(table, pids[n]) != 0)
 		{
-			printf("failed!\n");
-			return 1;
+			printf("remove pid: %i failed\n", pids[n]);
 		}
 	}
 	printf("OK!\n");
 	printf("destroying table\n");
-	destroy_pid_table(table);
+	pt_destroy_table(table);
 	printf("OK!\n");
 	return 0;
 }
