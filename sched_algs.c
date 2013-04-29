@@ -65,9 +65,9 @@ int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
     }
 
     int best_tile = 0;
-    int min_val = table->miss_counters[0]; 
+    float min_val = table->miss_counters[0];
     for (int i=1;i<num_of_cpus;i++) {
-        if (table->miss_counters[i] == 0) {
+        if (table->miss_counters[i] == 0.0) {
             return i;
         }
         else if (table->miss_counters[i] < min_val) {
