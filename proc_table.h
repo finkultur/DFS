@@ -15,9 +15,9 @@ struct proc_table_struct {
     tile_table tile_table;
     pid_table pid_table;
 
-    int total_miss_count;
-    float avg_miss_count;
-    int *miss_counters;
+    float total_miss_rate;
+    float avg_miss_rate;
+    float *miss_counters;
 };
 
 typedef struct proc_table_struct *proc_table;
@@ -38,6 +38,6 @@ int get_pid_vector(proc_table table, int tile_num, pid_t *array_of_pids, int num
 
 int get_tile_num(proc_table table, pid_t pid);
 
-void modify_miss_count(proc_table table, int tile_num, int amount);
+void modify_miss_count(proc_table table, int tile_num, float amount);
 
 #endif

@@ -17,8 +17,6 @@
 #include "migrate.h"
 
 #define POLLING_INTERVAL 10
-#define TH1 50000
-#define TH2 100000
 
 cpu_set_t *cpus_ptr;
 int num_of_cpus;
@@ -38,7 +36,7 @@ float *read_miss_rates;
  */
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    int all_misses;
+    int all_misses, wr_drd_cnt;
     proc_table table;
 
     struct poll_thread_struct *data;
@@ -69,50 +67,44 @@ void *poll_pmcs(void *struct_with_all_args) {
             // Read counters
             read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
 
-            // Update miss counters
+            // Update miss counters. Gives the new miss rate to miss_count.
             all_misses = wr_miss+drd_miss;
-            if (all_misses > TH2) {
-                modify_miss_count(table, i, 2);
-            }
-            else if (all_misses > TH1) {
-                modify_miss_count(table, i, 1);
-            }
-            else if (table->miss_counters[i] != 0) {
-                modify_miss_count(table, i, -1);
-            }
-            //maybe_migrate(table->miss_counters[i], i);            
+            wr_drd_cnt = wr_cnt + drd_cnt;
+			modify_miss_count(table, i, all_misses/wr_drd_cnt);
+
+			//maybe_migrate(table->miss_counters[i], i);
 
             clear_counters();
         }
-        lolgrate(table);
+        //lolgrate(table);
         sleep(POLLING_INTERVAL);
     }
 
 }
-
 
 /*
  * Only migrate processes if a tile has a miss-count-value higher than
  * two times the average miss-count-value.
  */
 void lolgrate(proc_table table) {
-    int miss_cnt;
+    float miss_cnt;
     
-    // Debugging
-    printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_count);
+    // Debugging - just print values from table
+    printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_rate);
     printf("lolgrate: processes/miss_cnt: ");
     for (int i=0;i<table->num_tiles;i++) {
-        printf("%i/%i ", i, table->miss_counters[i]);
+        printf("%i/%f ", i, table->miss_counters[i]);
     }
     printf("\n");
 
-    // 1.5 and 2 is magic values I just made up
+    // 1.5 and 2 are magic values I just made up
+    // They should most certainly be changed in some way.
     for (int i=0;i<table->num_tiles;i++) {
         miss_cnt = table->miss_counters[i];
-        if (miss_cnt > (1.5*table->avg_miss_count)) {
+        if (miss_cnt > (1.5*table->avg_miss_rate)) {
             cool_down_tile(table, i, 1);
         }
-        if (miss_cnt > (2*table->avg_miss_count)) {
+        if (miss_cnt > (2*table->avg_miss_rate)) {
             cool_down_tile(table, i, 2);
         }
     }

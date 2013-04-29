@@ -31,8 +31,8 @@ proc_table create_proc_table(size_t num_tiles) {
     for (int i=0;i<num_tiles;i++) {
         table->miss_counters[i] = 0;
     }
-    table->total_miss_count = 0;
-    table->avg_miss_count = 0.0;
+    table->total_miss_rate = 0;
+    table->avg_miss_rate = 0.0;
 	return table;
 }
 
@@ -93,8 +93,13 @@ int get_tile_num(proc_table table, pid_t pid) {
     return get_cpu(table->pid_table, pid);
 }
 
-void modify_miss_count(proc_table table, int tile_num, int amount) {
-    table->total_miss_count = table->total_miss_count + amount;
-    table->avg_miss_count = ((float) table->total_miss_count) / table->num_tiles;
-    table->miss_counters[tile_num] = table->miss_counters[tile_num] + amount;
+void modify_miss_count(proc_table table, int tile_num, float new_miss_rate) {
+	// Delete old miss rate from total
+    table->total_miss_rate = table->total_miss_rate - table->miss_counters[tile_num];
+    // Calculate average miss rate for tile_num
+    table->miss_counters[tile_num] = (table->miss_counters[tile_num] + new_miss_rate) / 2;
+    // Add new mis rate to total
+    table->total_miss_rate = table->total_miss_rate + table->miss_counters[tile_num];
+    // Calculate average miss rate among all tiles
+    table->avg_miss_rate = table->total_miss_rate / table->num_tiles;
 }

@@ -51,6 +51,10 @@ int get_tile_by_miss_rate(cpu_set_t *cpus, proc_table table, float *wr_miss_rate
     return best_tile;
 }
 
+/*
+ * Returns the tile with the least amount of contention. If there is
+ * an empty tile, it will return that and skip all other calculations.
+ */
 int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
     int num_of_cpus = tmc_cpus_count(cpus);
     printf("get_tile_from_counters: CPU COUNT %i\n", num_of_cpus);
@@ -72,7 +76,6 @@ int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
         } 
     }
     return best_tile;
-    
 }
 
 /*
@@ -105,7 +108,7 @@ int get_least_occupied_tile(int num_of_cpus, proc_table table) {
 }
 
 /*
- * Given a a pointer to a set of cpus, iterate through all of them to read
+ * Given a pointer to a set of cpus, it iterates through all of them to read
  * performance counters. Returns the number of the "best" tile - defined here
  * as the one with least miss rate on writes to the data cache.
  */
