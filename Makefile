@@ -3,6 +3,13 @@ TILECC=/opt/tilepro/bin/tile-cc
 CCFLAGS= -Wall #-std=c99
 LNFLAGS= -ltmc -pthread
 
+EXECUTABLE = main
+TILE_MONITOR = /opt/tilepro/bin/tile-monitor
+
+WORKLOAD_FILE = workloads/wl6.txt
+
+all: tilera
+
 tilera: main.o proc_table.o pid_table.o tile_table.o cmd_list.o sched_algs.o perfcount.o migrate.o
 	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o proc_table.o tile_table.o pid_table.o cmd_list.o sched_algs.o perfcount.o migrate.o
 
@@ -29,3 +36,9 @@ perfcount.o: perfcount.c perfcount.h
 
 migrate.o: migrate.c migrate.h
 	$(TILECC) $(CCFLAGS) -c migrate.c migrate.o
+
+run_pci: tilera
+	env \
+	 TILERA_IDE_PORT=tilera:51662 \
+	 TILERA_IDE_TEE=1 \
+	$(TILE_MONITOR) --pci --tile 3x2 --here --mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/ --hv-bin-dir /scratch/src/sys/hv/ --debug-on-crash -- $(EXECUTABLE) $(WORKLOAD_FILE)
