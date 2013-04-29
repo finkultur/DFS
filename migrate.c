@@ -24,7 +24,7 @@ float *write_miss_rates;
 float *read_miss_rates;
 
 /*
- * "Thread-function" that polls the performance registers every 
+ * "Thread-function" that polls the performance registers every
  * POLLING_INTERVAL seconds.
  *
  * Takes a struct containing the needed arguments:
@@ -36,7 +36,7 @@ float *read_miss_rates;
  */
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    int all_misses, wr_drd_cnt;
+    float all_misses, wr_drd_cnt;
     proc_table table;
 
     struct poll_thread_struct *data;
@@ -88,7 +88,7 @@ void *poll_pmcs(void *struct_with_all_args) {
  */
 void lolgrate(proc_table table) {
     float miss_cnt;
-    
+
     // Debugging - just print values from table
     printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_rate);
     printf("lolgrate: processes/miss_cnt: ");
@@ -108,11 +108,11 @@ void lolgrate(proc_table table) {
             cool_down_tile(table, i, 2);
         }
     }
-} 
+}
 
 /*
  * Moves a number of processes from a specified tile to new ones with less
- * contention. 
+ * contention.
  */
 void cool_down_tile(proc_table table, int tilenum, int how_much) {
     pid_t pids_to_move[how_much];
@@ -141,7 +141,7 @@ void migrate_process(proc_table table, int pid, int newtile) {
     // Reorder proc_table
     move_pid_to_tile(table, pid, newtile);
 
-    printf("Pid %i moved from logical tile %i to logical tile %i\n", 
+    printf("Pid %i moved from logical tile %i to logical tile %i\n",
            pid, oldtile, newtile);
 }
 

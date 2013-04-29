@@ -1,7 +1,7 @@
 /*
  * This is supposed to be the DFS scheduler.
  *
- */ 
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -15,19 +15,19 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-// Tilera 
+// Tilera
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 #include <tmc/udn.h>
 
-// DFS 
+// DFS
 #include "cmd_list.h"
 #include "sched_algs.h"
 #include "migrate.h"
 #include "perfcount.h"
 #include "proc_table.h"
 
-#define NUM_OF_CPUS 6 
+#define NUM_OF_CPUS 6
 #define TABLE_SIZE 8
 
 // RTS handlers:
@@ -40,7 +40,7 @@ int children_is_still_alive(void);
 
 // Global values:
 int counter = 0;
-proc_table table; 
+proc_table table;
 float wr_miss_rates[NUM_OF_CPUS] = {1.0};
 float drd_miss_rates[NUM_OF_CPUS] = {1.0};
 cmd_list list;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     else if (argc == 2) {
         printf("DFS scheduler initalized, writing output to stdout\n");
     }
-    else if (argc == 3) { 
+    else if (argc == 3) {
         char *logfile = argv[2];
         printf("DFS scheduler initalized, writing output to %s\n", logfile);
         freopen(logfile, "a+", stdout);
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     if (tmc_cpus_count(&cpus) != NUM_OF_CPUS) {
         tmc_task_die("Got wrong number of cpus: %i requested, got %i", NUM_OF_CPUS, tmc_cpus_count(&cpus));
     }
-   
+
     // Initialize proc_table
     table = create_proc_table(NUM_OF_CPUS);
     // Parse the file and set next to first entry in file.
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
     data->cpus = &cpus;
     data->wr_miss_rates = wr_miss_rates;
     data->drd_miss_rates = drd_miss_rates;
- 
+
     // Start the threads that polls the PMC registers
     pthread_t poll_pmcs_thread;
     pthread_create(&poll_pmcs_thread, NULL, poll_pmcs, (void*)data);
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
     		|| sigaction(SIGALRM, &start_action, NULL) != 0) {
     	printf("Failed to setup handler for SIGALRM\n");
     }
-    
+
     // Start the first process(es) in file and setup timers and stuff.
     start_process();
 
@@ -124,9 +124,9 @@ int main(int argc, char *argv[]) {
     int child_tile_num;
     while(children_is_still_alive() || last_program_started == 0) {
 
-        //print_processes(table);
+        print_processes(table);
 
-        // Reap child 
+        // Reap child
         child_pid = wait(NULL);
         if (child_pid > 0) {
             child_tile_num = get_tile_num(table, child_pid);
@@ -164,8 +164,8 @@ int start_process() {
 
     struct itimerval timer;
     struct timeval timeout;
-    cmd_entry cmd; 
- 
+    cmd_entry cmd;
+
     while ((cmd = get_first(list)) != NULL && cmd->start_time <= counter) {
         // Try to get an empty tile (or the tile with least contention)
         int tile_num = get_tile(&cpus, table);
@@ -173,7 +173,7 @@ int start_process() {
         // The shepherd avoids creating a debugger until exec has run
         // No idea if this a good thing and/or an improvement in performance
         //tmc_task_assume_impending_exec(1);
-        
+
         int pid = fork();
         if (pid < 0) {
             return 1; // Fork failed
@@ -184,13 +184,13 @@ int start_process() {
             }
             int mypid = getpid();
             int mycurcpu = tmc_cpus_get_my_current_cpu();
-            printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, tile-miss-counter: %i\n", 
+            printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, tile-miss-counter: %f\n",
                    mypid, mycurcpu, tile_num, get_pid_count(table, tile_num)+1, table->miss_counters[tile_num]);
-           
-            // Change working directory 
+
+            // Change working directory
             chdir(cmd->dir);
-     
-            // Redirect stdin 
+
+            // Redirect stdin
             if (cmd->new_stdin != NULL) {
                 char path[512];
                 strcpy(path, cmd->dir);
@@ -213,8 +213,8 @@ int start_process() {
         }
         remove_first(list);
     }
-   
-    if (cmd != NULL) { 
+
+    if (cmd != NULL) {
         timeout.tv_sec = (cmd->start_time)-counter;
         timeout.tv_usec = 0;
         timer.it_interval = timeout;
@@ -231,7 +231,7 @@ int start_process() {
 /*
  * Checks if there are running child processes.
  * Returns 1 if any children is still alive.
- * Isn't it a syscall for this? 
+ * Isn't it a syscall for this?
  */
 int children_is_still_alive() {
     for (int i=0;i<NUM_OF_CPUS;i++) {
@@ -244,7 +244,7 @@ int children_is_still_alive() {
 
 void print_processes(proc_table table) {
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        printf("Logical tile %i: %i processes\n, Miss-value: %i", 
+        printf("Logical tile %i: %i processes, Miss-value: %f\n",
                i, get_pid_count(table, i), table->miss_counters[i]);
 
     }
