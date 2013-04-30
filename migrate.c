@@ -104,11 +104,12 @@ void lolgrate(proc_table table) {
         // Cool down tile if miss rate is reasonably and the tile
         // has enough processes to migrate.
         if (miss_cnt > (1.5*table->avg_miss_rate && (get_pid_count(table, i) > 1))) {
-            cool_down_tile(table, i, 1);
+        	//cool_down_tile(table, i, 1);
+        	chill_it(table, i);
         }
-        else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
+        /*else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
             cool_down_tile(table, i, 2);
-        }
+        }*/
     }
 }
 
