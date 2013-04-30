@@ -208,8 +208,8 @@ int start_process() {
             return 1;
         }
         else {
-            // Add pid to proc table (0 == undefined class)
-            add_pid(table, pid, tile_num, 0);
+            // Add pid to proc table
+            add_pid(table, pid, tile_num, cmd->class);
         }
         remove_first(list);
     }
