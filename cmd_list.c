@@ -185,8 +185,8 @@ static struct cmd_entry_struct *parse_line(char *line)
 	{
 		token_count++;
 	}
-	// A properly formatted line has at least 3 tokens:
-	if (token_count < 3)
+	// A properly formatted line has at least 4 (incl. class) tokens:
+	if (token_count < 4)
 	{
 		return NULL ;
 	}
@@ -205,6 +205,9 @@ static struct cmd_entry_struct *parse_line(char *line)
 	// Parse start time:
 	token = strtok(parse_buf, DELIMITER);
 	new_entry->start_time = atoi(token);
+	// Parse class
+	token = strtok(NULL, DELIMITER);
+	new_entry->class = atoi(token);
 	// Parse working dir:
 	token = strtok(NULL, DELIMITER);
 	str_length = strlen(token) + 1;
@@ -251,7 +254,7 @@ static struct cmd_entry_struct *parse_line(char *line)
 
     /* This is some ugly code to redirect stdin/stdout.
      * It just makes it possible to do "$ cmd < input.txt".
-     * Can't handle any arguments other than this. 
+     * Can't handle any arguments other than this.
      *
      * Oh and you have to choose if you want to redirect stdin OR stdout!
      * */

@@ -18,6 +18,7 @@ struct cmd_list_struct;
 struct cmd_entry_struct
 {
 	int start_time;  // Command start time
+	int class; // Class number, 0 for undefined
 	char *dir;  // Working directory
 	char *cmd;  // Command name
 	char **argv;    // Argument vector
