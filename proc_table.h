@@ -40,6 +40,8 @@ int get_tile_num(proc_table table, pid_t pid);
 
 int get_class(proc_table table, pid_t pid);
 
+int get_total_value_of_classes(proc_table table, unsigned int cpu);
+
 void modify_miss_count(proc_table table, int tile_num, float amount);
 
 #endif
