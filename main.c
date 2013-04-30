@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     int child_tile_num;
     while(children_is_still_alive() || last_program_started == 0) {
 
-        print_processes(table);
+        //print_processes(table);
 
         // Reap child
         child_pid = wait(NULL);

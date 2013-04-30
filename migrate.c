@@ -76,7 +76,7 @@ void *poll_pmcs(void *struct_with_all_args) {
 
             clear_counters();
         }
-        //lolgrate(table);
+        lolgrate(table);
         sleep(POLLING_INTERVAL);
     }
 
@@ -90,21 +90,23 @@ void lolgrate(proc_table table) {
     float miss_cnt;
 
     // Debugging - just print values from table
-    printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_rate);
+    /*printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_rate);
     printf("lolgrate: processes/miss_cnt: ");
     for (int i=0;i<table->num_tiles;i++) {
         printf("%i/%f ", i, table->miss_counters[i]);
     }
     printf("\n");
-
+	*/
     // 1.5 and 2 are magic values I just made up
     // They should most certainly be changed in some way.
     for (int i=0;i<table->num_tiles;i++) {
         miss_cnt = table->miss_counters[i];
-        if (miss_cnt > (1.5*table->avg_miss_rate)) {
+        // Cool down tile if miss rate is reasonably and the tile
+        // has enough processes to migrate.
+        if (miss_cnt > (1.5*table->avg_miss_rate && (get_pid_count(table, i) > 1))) {
             cool_down_tile(table, i, 1);
         }
-        if (miss_cnt > (2*table->avg_miss_rate)) {
+        else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
             cool_down_tile(table, i, 2);
         }
     }
