@@ -113,6 +113,35 @@ void lolgrate(proc_table table) {
 }
 
 /*
+ * Moves processes from a tile to a new one until their total class values are
+ * moderately balanced.
+ */
+void chill_it(proc_table table, int tilenum) {
+	int new_tile = get_tile(cpus_ptr, table);
+	int from_val = get_total_value_of_classes(table, tilenum);
+	int to_val = get_total_value_of_classes(table, new_tile);
+	int diff = from_val-to_val;
+
+	int pids_on_old = get_pid_count(table, tilenum);
+	pid_t pids_to_move[pids_on_old];
+	get_pid_vector(table, tilenum, pids_to_move, pids_on_old);
+
+	// This is probably not a good way to do it
+
+	if (diff < 0) {
+		// what to do?
+	}
+
+	// 3 is a magic value I just made up
+	for (int i=0; diff > 3 && i<pids_on_old; i++) {
+		if (get_class(table, pids_to_move[i]) <= diff) {
+			migrate_process(table, pids_to_move[i], new_tile);
+		}
+	}
+
+}
+
+/*
  * Moves a number of processes from a specified tile to new ones with less
  * contention.
  */
