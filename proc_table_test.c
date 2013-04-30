@@ -32,7 +32,7 @@ int main(void) {
 		pid = rand();
         pids[n] = pid;
 		cpu = rand() % num_cpu;
-		if (add_pid(table, pid, cpu) != 0) {
+		if (add_pid(table, pid, cpu, 0) != 0) {
 			printf("failed!\n");
 			return 1;
 		}

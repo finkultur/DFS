@@ -26,7 +26,7 @@ proc_table create_proc_table(size_t num_tiles);
 
 void destroy_proc_table(proc_table table);
 
-int add_pid(proc_table table, pid_t pid, int tile_num);
+int add_pid(proc_table table, pid_t pid, int tile_num, int class);
 
 int remove_pid(proc_table table, pid_t pid);
 
@@ -37,6 +37,8 @@ int get_pid_count(proc_table table, int tile_num);
 int get_pid_vector(proc_table table, int tile_num, pid_t *array_of_pids, int num_pid);
 
 int get_tile_num(proc_table table, pid_t pid);
+
+int get_class(proc_table table, pid_t pid);
 
 void modify_miss_count(proc_table table, int tile_num, float amount);
 

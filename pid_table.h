@@ -33,7 +33,7 @@ void destroy_pid_table(pid_table table);
 
 /* Adds a new entry to the table with the specified process ID and allocated
  * tile. On success 0 is returned, otherwise -1. */
-int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu);
+int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu, int class);
 
 /* Removes the entry with the specified process ID from the table. Returns 0 on
  * success, otherwise -1. */
@@ -47,5 +47,8 @@ int get_cpu(pid_table table, pid_t pid);
 /* Sets the tile number for the specified process ID to the specified value.
  * On success 0 is returned, otherwise -1. */
 int set_cpu(pid_table table, pid_t pid, unsigned int cpu);
+
+// Returns the class of a pid. Returns -1 if class is undefined for pid.
+int get_class_number(pid_table table, pid_t pid);
 
 #endif /* _PID_TABLE_H */

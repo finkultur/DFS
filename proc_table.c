@@ -42,8 +42,8 @@ void destroy_proc_table(proc_table table) {
     free(table);
 }
 
-int add_pid(proc_table table, pid_t pid, int tile_num) {
-    if (add_pid_to_pid_table(table->pid_table, pid, tile_num) != 0) {
+int add_pid(proc_table table, pid_t pid, int tile_num, int class) {
+    if (add_pid_to_pid_table(table->pid_table, pid, tile_num, class) != 0) {
         return -1;
     }
     if (add_pid_to_tile_table(table->tile_table, pid, tile_num) != 0) {
@@ -66,15 +66,15 @@ int remove_pid(proc_table table, pid_t pid) {
 
 int move_pid_to_tile(proc_table table, pid_t pid, int new_tile_num) {
     int old_cpu = get_cpu(table->pid_table, pid);
-   
-    // Fix pid_table 
+
+    // Fix pid_table
     if (set_cpu(table->pid_table, pid, new_tile_num) != 0) {
         return -1;
     }
     // Fix tile_table
     if (remove_pid_from_tile_table(table->tile_table, pid, old_cpu) != 0) {
         return -1;
-    }    
+    }
     if (add_pid_to_tile_table(table->tile_table, pid, new_tile_num) != 0) {
         return -1;
     }
@@ -91,6 +91,10 @@ int get_pid_vector(proc_table table, int tile_num, pid_t *array_of_pids, int num
 
 int get_tile_num(proc_table table, pid_t pid) {
     return get_cpu(table->pid_table, pid);
+}
+
+int get_class(proc_table table, pid_t pid) {
+	return get_class_number(table->pid_table, pid);
 }
 
 void modify_miss_count(proc_table table, int tile_num, float new_miss_rate) {
