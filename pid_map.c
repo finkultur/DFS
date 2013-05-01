@@ -5,26 +5,22 @@
 #include "pid_map.h"
 #include <stdlib.h>
 
-/* Nasty hack to fix the eclipse-cdt code formatter since it won't handle NULLs
- * properly otherwise. */
-#undef NULL
-#define NULL 0
-
 /* Typedef for a tree node. */
-typedef struct pmap_node_struct node_t;
+typedef struct pid_map_node_struct node_t;
 
 /* Typedef for the node colour. */
-typedef enum pmap_node_colour colour_t;
+typedef enum pid_map_node_colour colour_t;
 
 /* Type to represent the colour of a node. */
-enum pmap_node_colour {
+enum pid_map_node_colour {
 	RED = 0, BLACK = 1
 };
 
 /* Type of a tree node (map entry). */
-struct pmap_node_struct {
+struct pid_map_node_struct {
 	pid_t pid; /* key. */
-	int cpu; /* value. */
+	int class;
+	int cpu;
 	colour_t colour;
 	node_t *parent;
 	node_t *left;
@@ -32,9 +28,9 @@ struct pmap_node_struct {
 };
 
 /* Type of a map instance. */
-struct pmap_map_struct {
+struct pid_map_struct {
 	size_t size;
-	struct pmap_node_struct *root;
+	struct pid_map_node_struct *root;
 };
 
 /* Helper functions, see definitions below. */
@@ -48,7 +44,7 @@ static void remove_fix(pid_map_t *map, node_t *node);
 static void free_tree(node_t *root);
 
 /* Creates a new map instance. */
-pid_map_t *pmap_create() {
+pid_map_t *pid_map_create(void) {
 	pid_map_t *new_map;
 
 	/* Allocate and initialise new tree. */
@@ -62,7 +58,7 @@ pid_map_t *pmap_create() {
 }
 
 /* Deallocates map instance from memory. */
-void pmap_destroy(pid_map_t *map) {
+void pid_map_destroy(pid_map_t *map) {
 	free_tree(map->root);
 	free(map);
 }
@@ -70,7 +66,7 @@ void pmap_destroy(pid_map_t *map) {
 /* Inserts a new entry to the map. The new node is inserted with a simple
  * traversal of the binary search tree. After insertion, a helper function is
  * called to fix any red-black tree property violations. */
-int pmap_insert(pid_map_t *map, pid_t pid, int cpu) {
+int pid_map_insert(pid_map_t *map, pid_t pid, int class, int cpu) {
 	node_t *node, *next;
 
 	/* Create and initialise new node, return on error. */
@@ -79,6 +75,7 @@ int pmap_insert(pid_map_t *map, pid_t pid, int cpu) {
 		return -1;
 	}
 	node->pid = pid;
+	node->class = class;
 	node->cpu = cpu;
 	node->colour = RED; /* New nodes are red by default. */
 	node->parent = NULL;
@@ -125,7 +122,7 @@ int pmap_insert(pid_map_t *map, pid_t pid, int cpu) {
 /* Removes the entry with the specified PID from the specified map. The node is
  * removed using a standard binary search tree removal. A helper function is
  * called to restore the red-black tree properties if needed. */
-int pmap_remove(pid_map_t *map, pid_t pid) {
+int pid_map_remove(pid_map_t *map, pid_t pid) {
 	node_t *node, *pred, *child;
 
 	/* Find node to remove. */
@@ -186,8 +183,33 @@ int pmap_remove(pid_map_t *map, pid_t pid) {
 	return 0;
 }
 
+/* Get class of specified PID. */
+int pid_map_get_class(pid_map_t *map, pid_t pid) {
+	node_t *node;
+
+	node = find_node(map, pid);
+	if (node != NULL) {
+		return node->class;
+	} else {
+		return -1;
+	}
+}
+
+/* Set class of specified PID. */
+int pid_map_set_class(pid_map_t *map, pid_t pid, int class) {
+	node_t *node;
+
+	node = find_node(map, pid);
+	if (node != NULL) {
+		node->class = class;
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
 /* Get CPU allocation for specified PID. */
-int pmap_get_cpu(pid_map_t *map, pid_t pid) {
+int pid_map_get_cpu(pid_map_t *map, pid_t pid) {
 	node_t *node;
 
 	node = find_node(map, pid);
@@ -199,20 +221,20 @@ int pmap_get_cpu(pid_map_t *map, pid_t pid) {
 }
 
 /* Update CPU allocation for the specified PID. */
-int pmap_set_cpu(pid_map_t *map, pid_t pid, int cpu) {
+int pid_map_set_cpu(pid_map_t *map, pid_t pid, int cpu) {
 	node_t *node;
 
 	node = find_node(map, pid);
 	if (node != NULL) {
 		node->cpu = cpu;
-		return 0;
 	} else {
 		return -1;
 	}
+	return 0;
 }
 
 /* Get size of specified map. */
-size_t pmap_get_size(pid_map_t *map) {
+size_t pid_map_get_size(pid_map_t *map) {
 	return map->size;
 }
 
@@ -346,8 +368,7 @@ static void insert_fix(pid_map_t *map, node_t *node) {
 	if ((node == node->parent->right) && (node->parent == grandp->left)) {
 		rotate_left(map, node->parent);
 		node = node->left;
-	} else if ((node == node->parent->left)
-			&& (node->parent == grandp->right)) {
+	} else if ((node == node->parent->left) && (node->parent == grandp->right)) {
 		rotate_right(map, node->parent);
 		node = node->right;
 	}
@@ -387,8 +408,8 @@ static void remove_fix(pid_map_t *map, node_t *node) {
 		/* If parent, sibling, and siblings children are all black, we repaint
 		 * the sibling red and restart operation from parent. */
 		if (get_colour(node->parent) == BLACK && get_colour(sibling) == BLACK
-				&& get_colour(sibling->left) == BLACK
-				&& get_colour(sibling->right) == BLACK) {
+				&& get_colour(sibling->left) == BLACK && get_colour(
+				sibling->right) == BLACK) {
 			sibling->colour = RED;
 			node = node->parent;
 		} else {
@@ -398,8 +419,8 @@ static void remove_fix(pid_map_t *map, node_t *node) {
 	/* If parent is red but sibling and children of sibling are black, repaint
 	 * parent black and sibling red. */
 	if (get_colour(node->parent) == RED && get_colour(sibling) == BLACK
-			&& get_colour(sibling->left) == BLACK
-			&& get_colour(sibling->right) == BLACK) {
+			&& get_colour(sibling->left) == BLACK && get_colour(sibling->right)
+			== BLACK) {
 		sibling->colour = RED;
 		node->parent->colour = BLACK;
 		return;
@@ -414,8 +435,8 @@ static void remove_fix(pid_map_t *map, node_t *node) {
 		sibling->left->colour = BLACK;
 		rotate_right(map, sibling);
 		sibling = get_sibling(node);
-	} else if (node == node->parent->right && get_colour(sibling->left) == BLACK
-			&& get_colour(sibling->right) == RED) {
+	} else if (node == node->parent->right && get_colour(sibling->left)
+			== BLACK && get_colour(sibling->right) == RED) {
 		sibling->colour = RED;
 		sibling->right->colour = BLACK;
 		rotate_left(map, sibling);
@@ -482,8 +503,8 @@ static int assert_tree(node_t *root, int black_limit, int black_count) {
 		return 0;
 	}
 	/* Assert node, returning immediately if a violation is found. */
-	if (get_colour(root) == RED
-			&& (get_colour(root->left) == RED || get_colour(root->right) == RED)) {
+	if (get_colour(root) == RED && (get_colour(root->left) == RED
+			|| get_colour(root->right) == RED)) {
 		return 2;
 	} else if (get_colour(root) == BLACK) {
 		black_count++;
@@ -507,7 +528,7 @@ static int assert_tree(node_t *root, int black_limit, int black_count) {
  * 3: Every path from a node to a descendant leaf contains the same number
  *    of black nodes.
  *  */
-int pmap_assert_map_properties(pid_map_t *map) {
+int pid_map_assert_tree(pid_map_t *map) {
 	int black_limit;
 	/* Empty tree? */
 	if (map->root == NULL) {
