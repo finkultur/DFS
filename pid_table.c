@@ -13,6 +13,7 @@ struct entry_struct
 {
 	pid_t pid;
 	unsigned int cpu;
+	int class;
 };
 
 /* Each index is represented by an index_struct. This data type holds the
@@ -37,7 +38,7 @@ struct table_struct
 
 // Function declarations, see below:
 static inline int hash_value(pid_table table, pid_t pid);
-static int insert_entry(pid_table table, pid_t pid, unsigned int cpu);
+static int insert_entry(pid_table table, pid_t pid, unsigned int cpu, int class);
 static int remove_entry(pid_table table, pid_t pid);
 static int grow_bucket_vector(pid_table table, int table_index);
 static int shrink_bucket_vector(pid_table table, int table_index);
@@ -105,14 +106,14 @@ void destroy_pid_table(pid_table table)
 }
 
 // Add new pid to table:
-int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu)
+int add_pid_to_pid_table(pid_table table, pid_t pid, unsigned int cpu, int class)
 {
 	if (table == NULL )
 	{
 		return -1;
 	}
 	// Add entry to table:
-	return insert_entry(table, pid, cpu);
+	return insert_entry(table, pid, cpu, class);
 }
 
 // Remove pid from table:
@@ -212,7 +213,7 @@ static inline int hash_value(pid_table table, pid_t pid)
 
 /* Inserts a new entry to table. Entries inserted are kept sorted according to
  * process ID. This allows fast binary searching of the data buckets. */
-static int insert_entry(pid_table table, pid_t pid, unsigned int cpu)
+static int insert_entry(pid_table table, pid_t pid, unsigned int cpu, int class)
 {
 	int table_index, bucket_index, shift_index, low_limit, high_limit;
 
@@ -268,6 +269,7 @@ static int insert_entry(pid_table table, pid_t pid, unsigned int cpu)
 	table->index[table_index].entry_count++;
 	table->index[table_index].buckets[bucket_index].pid = pid;
 	table->index[table_index].buckets[bucket_index].cpu = cpu;
+	table->index[table_index].buckets[bucket_index].class = class;
 	return 0;
 }
 
@@ -383,4 +385,43 @@ static int shrink_bucket_vector(pid_table table, int table_index)
 	table->index[table_index].bucket_count = new_bucket_count;
 	table->index[table_index].buckets = new_buckets;
 	return 0;
+}
+
+//Get class number associated with specified pid:
+// Copy-paste of get_cpu
+int get_class_number(pid_table table, pid_t pid)
+{
+	int table_index, bucket_index, low_limit, high_limit;
+
+	if (table == NULL )
+	{
+		return -1;
+	}
+	// Get table index:
+	table_index = hash_value(table, pid);
+	// Find bucket index for entry (binary search):
+	low_limit = 0;
+	high_limit = ((int) table->index[table_index].entry_count) - 1;
+	while (low_limit <= high_limit)
+	{
+		// Calculate next index to test:
+		bucket_index = (low_limit + high_limit) / 2;
+		if (table->index[table_index].buckets[bucket_index].pid < pid)
+		{
+			// Adjust lower bound when current entry is smaller:
+			low_limit = bucket_index + 1;
+		}
+		else if (table->index[table_index].buckets[bucket_index].pid > pid)
+		{
+			// Adjust higher bound when current entry is bigger:
+			high_limit = bucket_index - 1;
+		}
+		else
+		{
+			// Return when a matching entry is found:
+			return table->index[table_index].buckets[bucket_index].class;
+		}
+	}
+	// No matching entry found, indicate error:
+	return -1;
 }

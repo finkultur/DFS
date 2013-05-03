@@ -16,13 +16,17 @@
 #include "proc_table.h"
 #include "sched_algs.h"
 
+
+int get_tile(cpu_set_t *cpus, proc_table table) {
+    return get_tile_from_counters(cpus, table);
+}
 /*
  * Returns a suitable tile.
  *
  * Tries to get an empty tile, otherwise find the tile with least data cache
  * write miss rate.
  */
-int get_tile(cpu_set_t *cpus, proc_table table, float *wr_miss_rates) {
+int get_tile_by_miss_rate(cpu_set_t *cpus, proc_table table, float *wr_miss_rates) {
     int num_of_cpus = tmc_cpus_count(cpus);
     printf("get_tile: got cpu count %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
@@ -44,6 +48,33 @@ int get_tile(cpu_set_t *cpus, proc_table table, float *wr_miss_rates) {
         }
     }
     // Return the tile with the lowest value (calculated above)
+    return best_tile;
+}
+
+/*
+ * Returns the tile with the least amount of contention. If there is
+ * an empty tile, it will return that and skip all other calculations.
+ */
+int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
+    int num_of_cpus = tmc_cpus_count(cpus);
+    printf("get_tile_from_counters: CPU COUNT %i\n", num_of_cpus);
+    // If a tile it empty, its probably the most suitable tile...
+    int empty_tile = get_empty_tile(num_of_cpus, table);
+    if (empty_tile >= 0) {
+        return empty_tile;
+    }
+
+    int best_tile = 0;
+    float min_val = table->miss_counters[0];
+    for (int i=1;i<num_of_cpus;i++) {
+        if (table->miss_counters[i] == 0.0) {
+            return i;
+        }
+        else if (table->miss_counters[i] < min_val) {
+            best_tile = i;
+            min_val = table->miss_counters[i];
+        } 
+    }
     return best_tile;
 }
 
@@ -77,7 +108,7 @@ int get_least_occupied_tile(int num_of_cpus, proc_table table) {
 }
 
 /*
- * Given a a pointer to a set of cpus, iterate through all of them to read
+ * Given a pointer to a set of cpus, it iterates through all of them to read
  * performance counters. Returns the number of the "best" tile - defined here
  * as the one with least miss rate on writes to the data cache.
  */

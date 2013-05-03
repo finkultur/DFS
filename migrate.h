@@ -11,7 +11,6 @@ struct poll_thread_struct {
 
 // Function prototypes
 void *poll_pmcs(void *struct_with_args);
-void cool_down_tile(int tile_num, int how_much);
-void migrate_process(int pid, int new_tile);
-void print_wr_miss_rates(void);
-int get_first_pid_from_tile(int tilenum); // REMOVE
+void lolgrate(proc_table table);
+void cool_down_tile(proc_table table, int tile_num, int how_much);
+void migrate_process(proc_table table, int pid, int new_tile);

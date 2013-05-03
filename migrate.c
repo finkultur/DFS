@@ -17,17 +17,14 @@
 #include "migrate.h"
 
 #define POLLING_INTERVAL 10
-#define CONTENTION_LIMIT 0.58 // Totally arbitrary
-#define READS_BEFORE_RESET 3 // Reset counters every THIS*POLLING_INTERVAL seconds
 
-cpu_set_t *cpus;
+cpu_set_t *cpus_ptr;
 int num_of_cpus;
 float *write_miss_rates;
 float *read_miss_rates;
-proc_table table;
 
 /*
- * "Thread-function" that polls the performance registers every 
+ * "Thread-function" that polls the performance registers every
  * POLLING_INTERVAL seconds.
  *
  * Takes a struct containing the needed arguments:
@@ -39,7 +36,8 @@ proc_table table;
  */
 void *poll_pmcs(void *struct_with_all_args) {
     int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    int physical_tile;
+    float all_misses, wr_drd_cnt;
+    proc_table table;
 
     struct poll_thread_struct *data;
     data = (struct poll_thread_struct *) struct_with_all_args;
@@ -47,80 +45,117 @@ void *poll_pmcs(void *struct_with_all_args) {
     table = data->proctable;
     write_miss_rates = data->wr_miss_rates;
     read_miss_rates = data->drd_miss_rates;
-    cpus = data->cpus;
+    cpus_ptr = data->cpus;
 
-    num_of_cpus = tmc_cpus_count(cpus);
+    num_of_cpus = tmc_cpus_count(cpus_ptr);
     printf("\nNUMBER OF CPUS: %i\n", num_of_cpus);
 
     // Setup all performance counters on every initialized tile
-    if (setup_all_counters(cpus) != 0) {
+    if (setup_all_counters(cpus_ptr) != 0) {
         printf("setup_all_counters failed\n");
         return (void *) -1;
     }
 
-
-    int reset = READS_BEFORE_RESET;
     // Read counters and update table every X seconds
     while(1) {
         for(int i=0;i<num_of_cpus;i++) {
             // Switch to tile i
-            if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus, i)) < 0) {
+            if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus_ptr, i)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
                 return (void*) -1;
             }
             // Read counters
             read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-            physical_tile = tmc_cpus_get_my_current_cpu();
-            printf("Logical/Physical Tile %i/%i:", i, physical_tile); 
-            printf("wr_miss %i, wr_cnt %i, drd_miss %i, drd_cnt %i\n",
-                   wr_miss, wr_cnt, drd_miss, drd_cnt);
-            if (wr_cnt != 0) {
-                write_miss_rates[i] = ((float) wr_miss) / wr_cnt;
-                // If value is over CONTENTION_LIMIT, "cool down" tile
-                if ((get_pid_count(table,i) * write_miss_rates[i]) > CONTENTION_LIMIT) {
-                    printf("Cooool down please!\n");
-                    cool_down_tile(i, 1); // Cool down by 1 Unit
-                }
-            }
-            if (drd_cnt != 0) {
-                read_miss_rates[i] = ((float) drd_miss) / drd_cnt;
-            }
+
+            // Update miss counters. Gives the new miss rate to miss_count.
+            all_misses = wr_miss+drd_miss;
+            wr_drd_cnt = wr_cnt + drd_cnt;
+			modify_miss_count(table, i, all_misses/wr_drd_cnt);
+
+			//maybe_migrate(table->miss_counters[i], i);
+
+            clear_counters();
         }
-        // We reset all performance counters every x iteration
-        reset--;
-        if (reset == 0) {
-            printf("Resetting performance counters.\n");
-            clear_all_counters(cpus);
-            reset = READS_BEFORE_RESET;
-        }
-        print_wr_miss_rates();
+        lolgrate(table);
         sleep(POLLING_INTERVAL);
     }
 
 }
 
-void print_wr_miss_rates() {
-    printf("Wr miss rates:\n");
-    for (int i=0;i<num_of_cpus;i++) {
-        printf("Tile %i: Processes %i, Write miss rate is: %f\n", 
-               i, get_pid_count(table, i), write_miss_rates[i]);
+/*
+ * Only migrate processes if a tile has a miss-count-value higher than
+ * two times the average miss-count-value.
+ */
+void lolgrate(proc_table table) {
+    float miss_cnt;
+
+    // Debugging - just print values from table
+    /*printf("lolgrate: avg_miss_count = %f\n", table->avg_miss_rate);
+    printf("lolgrate: processes/miss_cnt: ");
+    for (int i=0;i<table->num_tiles;i++) {
+        printf("%i/%f ", i, table->miss_counters[i]);
+    }
+    printf("\n");
+	*/
+    // 1.5 and 2 are magic values I just made up
+    // They should most certainly be changed in some way.
+    for (int i=0;i<table->num_tiles;i++) {
+        miss_cnt = table->miss_counters[i];
+        // Cool down tile if miss rate is reasonably and the tile
+        // has enough processes to migrate.
+        if (miss_cnt > (1.5*table->avg_miss_rate && (get_pid_count(table, i) > 1))) {
+        	//cool_down_tile(table, i, 1);
+        	chill_it(table, i);
+        }
+        /*else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
+            cool_down_tile(table, i, 2);
+        }*/
     }
 }
 
 /*
- * Moves a number of processes from a specified tile to new ones with less
- * contention. 
+ * Moves processes from a tile to a new one until their total class values are
+ * moderately balanced.
  */
-void cool_down_tile(int tilenum, int how_much) {
+void chill_it(proc_table table, int tilenum) {
+	int new_tile = get_tile(cpus_ptr, table);
+	int from_val = get_total_value_of_classes(table, tilenum);
+	int to_val = get_total_value_of_classes(table, new_tile);
+	int diff = from_val-to_val;
+
+	int pids_on_old = get_pid_count(table, tilenum);
+	pid_t pids_to_move[pids_on_old];
+	get_pid_vector(table, tilenum, pids_to_move, pids_on_old);
+
+	// This is probably not a good way to do it
+
+	if (diff < 0) {
+		// what to do?
+	}
+
+	// 3 is a magic value I just made up
+	for (int i=0; diff > 3 && i<pids_on_old; i++) {
+		if (get_class(table, pids_to_move[i]) <= diff) {
+			migrate_process(table, pids_to_move[i], new_tile);
+		}
+	}
+
+}
+
+/*
+ * Moves a number of processes from a specified tile to new ones with less
+ * contention.
+ */
+void cool_down_tile(proc_table table, int tilenum, int how_much) {
     pid_t pids_to_move[how_much];
     get_pid_vector(table, tilenum, pids_to_move, how_much);
     int new_tile;
 
     // Move the pids
-    for (int i=0;i<how_much;i++) {
+    for (int i=0;(i<how_much && i<get_pid_count(table, tilenum));i++) {
         if (pids_to_move[i] > 0) { // Redundant check?
-            new_tile = get_tile(cpus, table, write_miss_rates);
-            migrate_process(pids_to_move[i], new_tile);
+            new_tile = get_tile(cpus_ptr, table);
+            migrate_process(table, pids_to_move[i], new_tile);
         }
     }
 }
@@ -128,15 +163,17 @@ void cool_down_tile(int tilenum, int how_much) {
 /*
  * Moves a process a new tile.
  */
-void migrate_process(int pid, int newtile) {
+void migrate_process(proc_table table, int pid, int newtile) {
     int oldtile = get_tile_num(table, pid);
     // set pid to new cpu
-    tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus, newtile)), pid);
+    if (tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus_ptr, newtile)), pid) < 0) {
+        tmc_task_die("Failure in tmc_cpus_set_task_cpu (in migrate_process)");
+    }
 
     // Reorder proc_table
     move_pid_to_tile(table, pid, newtile);
 
-    printf("Pid %i moved from logical tile %i to logical tile %i\n", 
+    printf("Pid %i moved from logical tile %i to logical tile %i\n",
            pid, oldtile, newtile);
 }
 
