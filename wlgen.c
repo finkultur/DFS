@@ -9,14 +9,14 @@
 int cmpfunc(const void *a, const void *b);
 
 // starttime class dir cmd args
-char *cmds[] = {"1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in",
-                "1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in",
-                "5 /opt/benchmarks/SPEC2006/benchspec/CPU2006/433.milc/run/build_base_compsys.0000/ milc < ../../data/test/input/su3imp3.in",
-                "5 /opt/benchmarks/SPEC2006/benchspec/CPU2006/433.milc/run/build_base_compsys.0000/ milc < ../../data/train/input/su3imp.in",
-                "0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps",
-                "0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps",
-                "0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of",
-                "0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 300 myreference.dat 0 1 ../../data/train/input/100_100_130_cf_b.of"
+char *cmds[] = {"1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in"
+                ,"1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in"
+                ,"5 /opt/benchmarks/SPEC2006/benchspec/CPU2006/433.milc/run/build_base_compsys.0000/ milc < ../../data/test/input/su3imp3.in"
+//                ,"5 /opt/benchmarks/SPEC2006/benchspec/CPU2006/433.milc/run/build_base_compsys.0000/ milc < ../../data/train/input/su3imp.in"
+                ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps"
+                ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps"
+                ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of"
+//                ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 300 myreference.dat 0 1 ../../data/train/input/100_100_130_cf_b.of"
                };
 
 /*

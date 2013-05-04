@@ -27,7 +27,7 @@
 #include "perfcount.h"
 #include "proc_table.h"
 
-#define NUM_OF_CPUS 6
+#define NUM_OF_CPUS 16
 #define TABLE_SIZE 8
 
 // RTS handlers:

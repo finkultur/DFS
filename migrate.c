@@ -16,7 +16,7 @@
 #include "sched_algs.h"
 #include "migrate.h"
 
-#define POLLING_INTERVAL 10
+#define POLLING_INTERVAL 5
 
 cpu_set_t *cpus_ptr;
 int num_of_cpus;
@@ -101,9 +101,10 @@ void check_for_possible_migration(proc_table table) {
         miss_cnt = table->miss_counters[i];
         // Cool down tile if miss rate is reasonably and the tile
         // has enough processes to migrate.
-        if (miss_cnt > (1.5*table->avg_miss_rate && (get_pid_count(table, i) > 1))) {
-        	//chill_it(table, i);
-        	migrate_smallest(table, i);
+        if (miss_cnt > (1.5*table->avg_miss_rate) && (get_pid_count(table, i) > 1)) {
+            printf("pid count for tile %i is %i", i, get_pid_count(table, i));
+        	chill_it(table, i);
+        	//migrate_smallest(table, i);
         }
         /*else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
             cool_down_tile(table, i, 2);
@@ -133,13 +134,21 @@ void migrate_smallest(proc_table table, int tilenum) {
 	migrate_process(table, smallest_pid, new_tile);
 }
 
+
+
 /*
  * Moves processes from a tile to a new one until their total class values are
  * moderately balanced.
  */
 void chill_it(proc_table table, int tilenum) {
+
 	int new_tile = get_tile(cpus_ptr, table);
-	int from_val = get_total_value_of_classes(table, tilenum);
+    pid_t pids_to_move[1];
+    get_pid_vector(table, tilenum, pids_to_move, 1);
+    
+    migrate_process(table, pids_to_move[0], new_tile);
+
+/*	int from_val = get_total_value_of_classes(table, tilenum);
 	int to_val = get_total_value_of_classes(table, new_tile);
 	int diff = from_val-to_val;
 
@@ -160,7 +169,7 @@ void chill_it(proc_table table, int tilenum) {
 			migrate_process(table, pids_to_move[i], new_tile);
 		}
 	}
-
+*/
 }
 
 /*
@@ -187,10 +196,11 @@ void cool_down_tile(proc_table table, int tilenum, int how_much) {
 void migrate_process(proc_table table, int pid, int newtile) {
     int oldtile = get_tile_num(table, pid);
     // set pid to new cpu
+    printf("migrate_process: NUMBER OF CPUS is %i\n", tmc_cpus_count(cpus_ptr));
     if (tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus_ptr, newtile)), pid) < 0) {
         tmc_task_die("Failure in tmc_cpus_set_task_cpu (in migrate_process)");
     }
-
+    
     // Reorder proc_table
     move_pid_to_tile(table, pid, newtile);
 

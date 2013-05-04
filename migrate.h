@@ -14,4 +14,5 @@ void *poll_pmcs(void *struct_with_args);
 void check_for_possible_migration(proc_table table);
 void migrate_smallest(proc_table table, int tilenum);
 void cool_down_tile(proc_table table, int tile_num, int how_much);
+void chill_it(proc_table table, int tilenum);
 void migrate_process(proc_table table, int pid, int new_tile);
