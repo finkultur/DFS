@@ -20,7 +20,7 @@
 // DFS 
 #include "cmd_list.h"
 
-#define NUM_OF_CPUS 8
+#define NUM_OF_CPUS 16
 
 // RTS handlers:
 void start_handler(int, siginfo_t*, void*);
