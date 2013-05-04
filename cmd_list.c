@@ -185,8 +185,8 @@ static struct cmd_entry_struct *parse_line(char *line)
 	{
 		token_count++;
 	}
-	// A properly formatted line has at least 3 tokens:
-	if (token_count < 3)
+	// A properly formatted line has at least 4 (incl. class) tokens:
+	if (token_count < 4)
 	{
 		return NULL ;
 	}
@@ -205,6 +205,9 @@ static struct cmd_entry_struct *parse_line(char *line)
 	// Parse start time:
 	token = strtok(parse_buf, DELIMITER);
 	new_entry->start_time = atoi(token);
+	// Parse class
+	token = strtok(NULL, DELIMITER);
+	new_entry->class = atoi(token);
 	// Parse working dir:
 	token = strtok(NULL, DELIMITER);
 	str_length = strlen(token) + 1;
@@ -248,6 +251,28 @@ static struct cmd_entry_struct *parse_line(char *line)
 	}
 	// Set NULL-pointer at last index of argv:
 	new_entry->argv[arg_index] = NULL;
+
+    /* This is some ugly code to redirect stdin/stdout.
+     * It just makes it possible to do "$ cmd < input.txt".
+     * Can't handle any arguments other than this.
+     *
+     * Oh and you have to choose if you want to redirect stdin OR stdout!
+     * */
+    if (*new_entry->argv[1] == '<' && new_entry->argv[2] != NULL) {
+        new_entry->new_stdin = new_entry->argv[2];
+        free(new_entry->argv[1]);
+        new_entry->argv[1] = NULL;
+    }
+    else if (*new_entry->argv[1] == '>' && new_entry->argv[2] != NULL) {
+        new_entry->new_stdout = new_entry->argv[2];
+        free(new_entry->argv[1]);
+        new_entry->argv[1] = NULL;
+    }
+    else {
+        new_entry->new_stdout = NULL;
+        new_entry->new_stdin = NULL;
+    }
+
 	// Return entry:
 	return new_entry;
 }
