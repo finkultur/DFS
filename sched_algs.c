@@ -20,6 +20,33 @@
 int get_tile(cpu_set_t *cpus, proc_table table) {
     return get_tile_from_counters(cpus, table);
 }
+
+/**
+ * Returns a suitable tile by class value.
+ * Tries to get an empty tile, otherwise it returns
+ * the tile with the lowest total class value.
+ */
+int get_tile_by_classes(cpu_set_t *cpus, proc_table table) {
+    int num_of_cpus = tmc_cpus_count(cpus);
+    printf("get_tile: got cpu count %i\n", num_of_cpus);
+    // If a tile it empty, its probably the most suitable tile...
+    int empty_tile = get_empty_tile(num_of_cpus, table);
+    if (empty_tile >= 0) {
+        return empty_tile;
+    }
+
+    int best_tile = 0;
+    int min_val = get_total_value_of_classes(table, 0);
+    for (int i=1;i<num_of_cpus;i++) {
+        if (get_total_value_of_classes(table, i) < min_val) {
+            best_tile = i;
+            min_val = get_total_value_of_classes(table, i);
+        }
+    }
+    // Return the tile with the lowest value (calculated above)
+    return best_tile;
+
+}
 /*
  * Returns a suitable tile.
  *
@@ -36,15 +63,15 @@ int get_tile_by_miss_rate(cpu_set_t *cpus, proc_table table, float *wr_miss_rate
     }
 
     // Otherwise, calculate the best tile through multiplying the tile's miss
-    // rate by the number of processes running on that tile. 
+    // rate by the number of processes running on that tile.
     int best_tile = 0;
     float min_val = get_pid_count(table, 0) * wr_miss_rates[0];
     int temp_val;
     for (int i=1;i<num_of_cpus;i++) {
-        temp_val = get_pid_count(table, i) * wr_miss_rates[i]; 
+        temp_val = get_pid_count(table, i) * wr_miss_rates[i];
         if (temp_val < min_val) {
             best_tile = i;
-            min_val = temp_val; 
+            min_val = temp_val;
         }
     }
     // Return the tile with the lowest value (calculated above)
@@ -73,7 +100,7 @@ int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
         else if (table->miss_counters[i] < min_val) {
             best_tile = i;
             min_val = table->miss_counters[i];
-        } 
+        }
     }
     return best_tile;
 }
@@ -101,7 +128,7 @@ int get_least_occupied_tile(int num_of_cpus, proc_table table) {
     for (int i=1;i<num_of_cpus;i++) {
         if (get_pid_count(table, i) < min_val) {
             best_tile = i;
-            min_val = get_pid_count(table, i); 
+            min_val = get_pid_count(table, i);
         }
     }
     return best_tile;
@@ -113,7 +140,7 @@ int get_least_occupied_tile(int num_of_cpus, proc_table table) {
  * as the one with least miss rate on writes to the data cache.
  */
 int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
-    
+
     int num_of_cpus = tmc_cpus_count(cpus);
     int best_tile = 0;
     float min_value = 1.0;

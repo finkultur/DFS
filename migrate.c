@@ -56,7 +56,7 @@ void *poll_pmcs(void *struct_with_all_args) {
         return (void *) -1;
     }
 
-    // Read counters and update table every X seconds
+    // Read counters and update table every POLLING_INTERVAL seconds
     while(1) {
         for(int i=0;i<num_of_cpus;i++) {
             // Switch to tile i
@@ -72,11 +72,9 @@ void *poll_pmcs(void *struct_with_all_args) {
             wr_drd_cnt = wr_cnt + drd_cnt;
 			modify_miss_count(table, i, all_misses/wr_drd_cnt);
 
-			//maybe_migrate(table->miss_counters[i], i);
-
             clear_counters();
         }
-        lolgrate(table);
+        check_for_possible_migration(table);
         sleep(POLLING_INTERVAL);
     }
 
@@ -86,7 +84,7 @@ void *poll_pmcs(void *struct_with_all_args) {
  * Only migrate processes if a tile has a miss-count-value higher than
  * two times the average miss-count-value.
  */
-void lolgrate(proc_table table) {
+void check_for_possible_migration(proc_table table) {
     float miss_cnt;
 
     // Debugging - just print values from table
@@ -104,13 +102,35 @@ void lolgrate(proc_table table) {
         // Cool down tile if miss rate is reasonably and the tile
         // has enough processes to migrate.
         if (miss_cnt > (1.5*table->avg_miss_rate && (get_pid_count(table, i) > 1))) {
-        	//cool_down_tile(table, i, 1);
-        	chill_it(table, i);
+        	//chill_it(table, i);
+        	migrate_smallest(table, i);
         }
         /*else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
             cool_down_tile(table, i, 2);
         }*/
     }
+}
+
+/**
+ * Migrates the process with the smallest class value from a tile
+ * to a new tile.
+ */
+void migrate_smallest(proc_table table, int tilenum) {
+	int new_tile = get_tile(cpus_ptr, table);
+	int pids_on_old = get_pid_count(table, tilenum);
+	pid_t pids_to_move[pids_on_old];
+	get_pid_vector(table, tilenum, pids_to_move, pids_on_old);
+
+	pid_t smallest_pid = pids_to_move[0];
+	int min_val = get_class(table, pids_to_move[0]);
+	for (int i=1; i<pids_on_old; i++) {
+		if (get_class(table, pids_to_move[i]) < min_val) {
+			smallest_pid = pids_to_move[i];
+			min_val = get_class(table, pids_to_move[i]);
+		}
+	}
+
+	migrate_process(table, smallest_pid, new_tile);
 }
 
 /*
@@ -131,6 +151,7 @@ void chill_it(proc_table table, int tilenum) {
 
 	if (diff < 0) {
 		// what to do?
+		return; // ???
 	}
 
 	// 3 is a magic value I just made up
