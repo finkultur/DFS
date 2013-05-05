@@ -10,8 +10,8 @@ WORKLOAD_FILE = workloads/wl6.txt
 
 all: tilera
 
-tilera: main.o proc_table.o pid_table.o tile_table.o cmd_list.o sched_algs.o perfcount.o migrate.o
-	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o proc_table.o tile_table.o pid_table.o cmd_list.o sched_algs.o perfcount.o migrate.o
+tilera: main.o proc_table.o pid_table.o tile_table.o cmd_list.o sched_algs.o perfcount.o tilepoll.o
+	$(TILECC) $(CCFLAGS) $(LNFLAGS) -o main main.o proc_table.o tile_table.o pid_table.o cmd_list.o sched_algs.o perfcount.o tilepoll.o
 
 main.o: main.c
 	$(TILECC) $(CCFLAGS) -c main.c main.o
@@ -34,8 +34,11 @@ sched_algs.o: sched_algs.c
 perfcount.o: perfcount.c perfcount.h
 	$(TILECC) $(CCFLAGS) -c perfcount.c perfcount.o
 
-migrate.o: migrate.c migrate.h
-	$(TILECC) $(CCFLAGS) -c migrate.c migrate.o
+tilepoll.o: tilepoll.c tilepoll.h
+	$(TILECC) $(CCFLAGS) -c tilepoll.c tilepoll.h
+
+#migrate.o: migrate.c migrate.h
+#	$(TILECC) $(CCFLAGS) -c migrate.c migrate.o
 
 run_pci: tilera
 	env \

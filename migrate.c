@@ -104,11 +104,7 @@ void check_for_possible_migration(proc_table table) {
         if (miss_cnt > (1.5*table->avg_miss_rate) && (get_pid_count(table, i) > 1)) {
             //printf("pid count for tile %i is %i", i, get_pid_count(table, i));
         	chill_it(table, i);
-        	//migrate_smallest(table, i);
         }
-        /*else if (miss_cnt > (2*table->avg_miss_rate && (get_pid_count(table, i) > 2))) {
-            cool_down_tile(table, i, 2);
-        }*/
     }
 }
 

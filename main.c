@@ -24,6 +24,7 @@
 #include "cmd_list.h"
 #include "sched_algs.h"
 #include "migrate.h"
+#include "tilepoll.h"
 #include "perfcount.h"
 #include "proc_table.h"
 
@@ -41,6 +42,7 @@ int children_is_still_alive(void);
 // Global values:
 int counter = 0;
 proc_table table;
+float miss_rates[NUM_OF_CPUS] = {1.0};
 float wr_miss_rates[NUM_OF_CPUS] = {1.0};
 float drd_miss_rates[NUM_OF_CPUS] = {1.0};
 cmd_list list;
@@ -92,6 +94,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    /* 
     // Define a struct containing data to be sent to thread
     struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
     data->proctable = table;
@@ -102,6 +105,20 @@ int main(int argc, char *argv[]) {
     // Start the threads that polls the PMC registers
     pthread_t poll_pmcs_thread;
     pthread_create(&poll_pmcs_thread, NULL, poll_pmcs, (void*)data);
+    */
+
+    // Define structs to be sent to threads
+    struct tilepoll_struct *t_args[NUM_OF_CPUS];
+
+    pthread_t polling_threads[NUM_OF_CPUS];
+    // START A POLLING THREAD FOR EACH CPU
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        t_args[i] = malloc(sizeof(struct tilepoll_struct));
+        t_args[i]->my_tile = i;
+        t_args[i]->my_miss_rate = miss_rates; 
+        t_args[i]->cpus = &cpus;
+        pthread_create(&polling_threads[i], NULL, poll_my_pmcs, (void*) t_args[i]);
+    }
 
     // Init RTS for process start:
     start_action.sa_handler = NULL;
@@ -245,7 +262,7 @@ int children_is_still_alive() {
 void print_processes(proc_table table) {
     for (int i=0;i<NUM_OF_CPUS;i++) {
         printf("Logical tile %i: %i processes, Miss-value: %f\n",
-               i, get_pid_count(table, i), table->miss_counters[i]);
+               i, get_pid_count(table, i), miss_rates[i]);
 
     }
 }
