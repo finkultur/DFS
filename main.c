@@ -182,10 +182,10 @@ int start_process() {
             if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, tile_num)) < 0) {
                 tmc_task_die("failure in 'tmc_set_my_cpu'");
             }
-            int mypid = getpid();
-            int mycurcpu = tmc_cpus_get_my_current_cpu();
-            printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, tile-miss-counter: %f\n",
-                   mypid, mycurcpu, tile_num, get_pid_count(table, tile_num)+1, table->miss_counters[tile_num]);
+            //int mypid = getpid();
+            //int mycurcpu = tmc_cpus_get_my_current_cpu();
+            //printf("Pid #%i: Physical #%i, Logical #%i. Processes on tile: %i, tile-miss-counter: %f\n",
+//                   mypid, mycurcpu, tile_num, get_pid_count(table, tile_num)+1, table->miss_counters[tile_num]);
 
             // Change working directory
             chdir(cmd->dir);

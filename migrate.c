@@ -16,7 +16,7 @@
 #include "sched_algs.h"
 #include "migrate.h"
 
-#define POLLING_INTERVAL 5
+#define POLLING_INTERVAL 10
 
 cpu_set_t *cpus_ptr;
 int num_of_cpus;
@@ -102,7 +102,7 @@ void check_for_possible_migration(proc_table table) {
         // Cool down tile if miss rate is reasonably and the tile
         // has enough processes to migrate.
         if (miss_cnt > (1.5*table->avg_miss_rate) && (get_pid_count(table, i) > 1)) {
-            printf("pid count for tile %i is %i", i, get_pid_count(table, i));
+            //printf("pid count for tile %i is %i", i, get_pid_count(table, i));
         	chill_it(table, i);
         	//migrate_smallest(table, i);
         }
@@ -196,7 +196,7 @@ void cool_down_tile(proc_table table, int tilenum, int how_much) {
 void migrate_process(proc_table table, int pid, int newtile) {
     int oldtile = get_tile_num(table, pid);
     // set pid to new cpu
-    printf("migrate_process: NUMBER OF CPUS is %i\n", tmc_cpus_count(cpus_ptr));
+    //printf("migrate_process: NUMBER OF CPUS is %i\n", tmc_cpus_count(cpus_ptr));
     if (tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(cpus_ptr, newtile)), pid) < 0) {
         tmc_task_die("Failure in tmc_cpus_set_task_cpu (in migrate_process)");
     }

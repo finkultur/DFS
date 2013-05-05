@@ -28,7 +28,7 @@ int get_tile(cpu_set_t *cpus, proc_table table) {
  */
 int get_tile_by_classes(cpu_set_t *cpus, proc_table table) {
     int num_of_cpus = tmc_cpus_count(cpus);
-    printf("get_tile: got cpu count %i\n", num_of_cpus);
+    //printf("get_tile: got cpu count %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
     int empty_tile = get_empty_tile(num_of_cpus, table);
     if (empty_tile >= 0) {
@@ -55,7 +55,7 @@ int get_tile_by_classes(cpu_set_t *cpus, proc_table table) {
  */
 int get_tile_by_miss_rate(cpu_set_t *cpus, proc_table table, float *wr_miss_rates) {
     int num_of_cpus = tmc_cpus_count(cpus);
-    printf("get_tile: got cpu count %i\n", num_of_cpus);
+    //printf("get_tile: got cpu count %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
     int empty_tile = get_empty_tile(num_of_cpus, table);
     if (empty_tile >= 0) {
@@ -84,7 +84,7 @@ int get_tile_by_miss_rate(cpu_set_t *cpus, proc_table table, float *wr_miss_rate
  */
 int get_tile_from_counters(cpu_set_t *cpus, proc_table table) {
     int num_of_cpus = tmc_cpus_count(cpus);
-    printf("get_tile_from_counters: CPU COUNT %i\n", num_of_cpus);
+    //printf("get_tile_from_counters: CPU COUNT %i\n", num_of_cpus);
     // If a tile it empty, its probably the most suitable tile...
     int empty_tile = get_empty_tile(num_of_cpus, table);
     if (empty_tile >= 0) {
@@ -170,7 +170,7 @@ int get_tile_with_min_write_miss_rate(cpu_set_t *cpus) {
                 min_value = wr_miss_rate;
                 best_tile = i;
         }
-        printf("Tile %i: Wr_miss_rate %f, wr_miss %i, wr_cnt %i\n", i, wr_miss_rate, wr_miss, wr_cnt);
+        //printf("Tile %i: Wr_miss_rate %f, wr_miss %i, wr_cnt %i\n", i, wr_miss_rate, wr_miss, wr_cnt);
     }
     return best_tile;
 }
