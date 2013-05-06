@@ -1,235 +1,159 @@
 /* tile_table.c
  *
- * Implementation of the tile_table module.
+ * Implementation of the tile table module.
  */
 
 #include <stdlib.h>
 #include "tile_table.h"
 
-/* Each position in the table index represents a tile (CPU) and is implemented
- * with an index_struct. This data type holds the vector of process IDs running
- * on the tile. It also contains a count of the number of entries in the process
- * ID vector as well as its capacity. */
-struct index_struct
-{
-	size_t entry_count;
-	size_t bucket_count;
-	pid_t *buckets;
+/* Type definition for a tile index entry. */
+typedef struct tile_struct tile_t;
+
+/* Data type for a tile index entry. */
+struct tile_struct {
+	size_t pid_count;
+	int class_value;
+	float miss_rate;
 };
 
-/* A tile_table instance is represented by the tile_table_struct. This data type
- * contains the table index vector of tiles. It also holds the number of tiles
- * in the index vector as well as the minimum number of buckets allocated to
- * each index position. */
-struct tile_table_struct
-{
-	size_t index_size;
-	size_t min_buckets;
-	struct index_struct *index;
+/* Data type for a tile table instance. */
+struct tile_table_struct {
+	size_t num_cpu;
+	tile_t *cpu_index;
+	pid_set_t *pid_set;
 };
 
-// Function declarations, see below:
-static int grow_bucket_vector(tile_table table, unsigned int cpu);
-static int shrink_bucket_vector(tile_table table, unsigned int cpu);
-
-// Create a new table:
-tile_table create_tile_table(size_t num_cpu, size_t num_pid)
+/* Creates a new table. */
+tile_table_t *tile_table_create(size_t num_cpu)
 {
-	int table_index;
-	struct tile_table_struct *new_table;
-	struct index_struct *new_index;
-	pid_t *new_bucket;
-
-	if (num_cpu == 0)
-	{
-		return NULL ;
+	int i;
+	tile_table_t *table;
+	/* Check for valid index size. */
+	if (num_cpu == 0) {
+		return NULL;
 	}
-	// Allocate table, return on error:
-	new_table = malloc(sizeof(struct tile_table_struct));
-	if (new_table == NULL )
-	{
-		return NULL ;
-	}
-	// Allocate index, return on error:
-	new_index = malloc(num_cpu * sizeof(struct index_struct));
-	if (new_index == NULL )
-	{
-		return NULL ;
-	}
-	// Initialize table and index, allocate pids vectors. Return on error:
-	new_table->index_size = num_cpu;
-	new_table->min_buckets = num_pid;
-	new_table->index = new_index;
-	for (table_index = 0; table_index < num_cpu; table_index++)
-	{
-		new_bucket = malloc(num_pid * sizeof(pid_t));
-		if (new_bucket == NULL )
-		{
-			return NULL ;
+	/* Allocate table, index and table index pid sets. */
+	if ((table = malloc(sizeof(tile_table_t))) == NULL) {
+		return NULL;
+	} else if ((table->cpu_index = malloc(num_cpu * sizeof(tile_t))) == NULL) {
+		free(table);
+		return NULL;
+	} else if ((table->pid_set = pid_set_create()) == NULL) {
+		free(table);
+		return NULL;
+	} else {
+		table->num_cpu = num_cpu;
+		for (i = 0; i < num_cpu; i++) {
+			table->cpu_index[i].pid_count = 0;
+			table->cpu_index[i].class_value = 0;
+			table->cpu_index[i].miss_rate = 0.0f;
 		}
-		new_table->index[table_index].entry_count = 0;
-		new_table->index[table_index].bucket_count = num_pid;
-		new_table->index[table_index].buckets = new_bucket;
+		return table;
 	}
-	return new_table;
 }
 
-// Deallocate table and all entries:
-void destroy_tile_table(tile_table table)
+/* Deallocate table and all entries. */
+void tile_table_destroy(tile_table_t *table)
 {
-	int table_index;
-	if (table == NULL )
-	{
-		return;
-	}
-	// Deallocate buckets:
-	for (table_index = 0; table_index < table->index_size; table_index++)
-	{
-		free(table->index[table_index].buckets);
-	}
-	// Deallocate table index:
-	free(table->index);
-	// Deallocate table:
+	/* Free index and set. */
+	pid_set_destroy(table->pid_set);
+	free(table->cpu_index);
 	free(table);
 }
 
-// Add pid to list of running processes on specified tile:
-int add_pid_to_tile_table(tile_table table, pid_t pid, unsigned int cpu)
+/* Adds the process ID to the set of running processes. */
+int tile_table_insert(tile_table_t *table, pid_t pid, int cpu, int class)
 {
-	if (table == NULL || cpu >= table->index_size
-			|| grow_bucket_vector(table, cpu) != 0)
-	{
+	int status;
+	if (cpu < 0 || cpu >= table->num_cpu) {
 		return -1;
 	}
-	// Add pid to tile, on last position in vector:
-	table->index[cpu].buckets[table->index[cpu].entry_count] = pid;
-	table->index[cpu].entry_count++;
-	return 0;
+	status = pid_set_insert(table->pid_set, pid, cpu, class);
+	if (status == 0) {
+		table->cpu_index[cpu].pid_count++;
+		table->cpu_index[cpu].class_value += class;
+	}
+	return status;
 }
 
-// Remove pid from list of running processes on specified tile:
-int remove_pid_from_tile_table(tile_table table, pid_t pid, unsigned int cpu)
+/* Removes the process ID from the set of running processes. */
+int tile_table_remove(tile_table_t *table, pid_t pid)
 {
-	int bucket_index, shift_index;
-
-	if (table == NULL || cpu >= table->index_size)
-	{
+	int cpu = pid_set_get_cpu(table->pid_set, pid);
+	int class = pid_set_get_class(table->pid_set, pid);
+	if (cpu == -1 || class == -1) {
 		return -1;
-	}
-	// Find pid index in bucket vector:
-	for (bucket_index = 0; bucket_index < table->index[cpu].entry_count;
-			bucket_index++)
-	{
-		if (table->index[cpu].buckets[bucket_index] == pid)
-		{
-			break;
-		}
-	}
-	// No pid found, return error:
-	if (bucket_index == table->index[cpu].entry_count)
-	{
-		return -1;
-	}
-	// Remove entry from table:
-	if (bucket_index != table->index[cpu].entry_count - 1)
-	{
-		shift_index = bucket_index;
-		while (shift_index < table->index[cpu].entry_count - 1)
-		{
-			table->index[cpu].buckets[shift_index] =
-					table->index[cpu].buckets[shift_index + 1];
-			shift_index++;
-		}
-	}
-	table->index[cpu].entry_count--;
-	// Shrink bucket vector and return:
-	return (shrink_bucket_vector(table, cpu));
-}
-
-// Get number of processes running on tile:
-int get_pid_count_from_tile(tile_table table, unsigned int cpu)
-{
-	if (table == NULL || cpu >= table->index_size)
-	{
-		return -1;
-	}
-	return table->index[cpu].entry_count;
-}
-
-// Get list of all pids running on a given tile:
-int get_pids(tile_table table, unsigned int cpu, pid_t *pids, size_t num_pid)
-{
-	int pid_index;
-
-	if (table == NULL || cpu >= table->index_size)
-	{
-		return -1;
-	}
-	// Copy running pids to parameter array:
-	for (pid_index = 0;
-			pid_index < table->index[cpu].entry_count && pid_index < num_pid;
-			pid_index++)
-	{
-		pids[pid_index] = table->index[cpu].buckets[pid_index];
-	}
-	return pid_index;
-}
-
-/* Doubles the size of the process ID vector at the specified tile if the
- * vector is full. */
-static int grow_bucket_vector(tile_table table, unsigned int cpu)
-{
-	size_t new_bucket_count;
-	pid_t *new_buckets;
-
-	// Check if pid vector should be grown (full), otherwise return:
-	if (table->index[cpu].entry_count < table->index[cpu].bucket_count)
-	{
+	} else {
+		pid_set_remove(table->pid_set, pid);
+		table->cpu_index[cpu].pid_count--;
+		table->cpu_index[cpu].class_value -= class;
 		return 0;
 	}
-	// Double bucket count:
-	new_bucket_count = 2 * table->index[cpu].bucket_count;
-	// Reallocate bucket vector:
-	new_buckets = realloc(table->index[cpu].buckets,
-			new_bucket_count * sizeof(pid_t));
-	if (new_buckets == NULL )
-	{
-		return -1;
-	}
-	table->index[cpu].bucket_count = new_bucket_count;
-	table->index[cpu].buckets = new_buckets;
-	return 0;
 }
 
-/* Shrinks (halves) the bucket vector at the specified index until it is at
- * least 25% full. */
-static int shrink_bucket_vector(tile_table table, unsigned int cpu)
+/* Moves a pid to a new tile */
+int tile_table_move(tile_table_t *table, pid_t pid, int new_tile)
 {
-	size_t new_bucket_count;
-	pid_t *new_buckets;
+    int cpu = pid_set_get_cpu(table->pid_set, pid);
+    int class = pid_set_get_class(table->pid_set, pid);
+    pid_set_set_cpu(table->pid_set, pid, new_tile); 
+    table->cpu_index[cpu].class_value -= class;
+    table->cpu_index[new_tile].class_value += class;
+    table->cpu_index[cpu].pid_count--;
+    table->cpu_index[new_tile].pid_count++;
 
-	// Check if bucket vector size should be shrunk, otherwise return:
-	if (table->index[cpu].bucket_count <= table->min_buckets
-			|| table->index[cpu].entry_count
-					>= (table->index[cpu].bucket_count / 4))
-	{
+    return 0;
+}
+
+/* Returns the number of processes running on the specified tile. */
+int tile_table_get_pid_count(tile_table_t *table, int cpu)
+{
+	if (cpu < 0 || cpu >= table->num_cpu) {
+		return -1;
+	} else {
+		return table->cpu_index[cpu].pid_count;
+	}
+}
+
+/* Returns the accumulated class value of all processes running on specified
+ * tile. */
+int tile_table_get_class_value(tile_table_t *table, int cpu)
+{
+	if (cpu < 0 || cpu >= table->num_cpu) {
+		return -1;
+	} else {
+		return table->cpu_index[cpu].class_value;
+	}
+}
+
+/* Returns the process ID with the lowest class value of all processes running
+ * on the specified tile. */
+pid_t tile_table_get_minimum_pid(tile_table_t *table, int cpu)
+{
+	if (cpu < 0 || cpu >= table->num_cpu) {
+		return -1;
+	} else {
+		return pid_set_get_minimum_pid(table->pid_set, cpu);
+	}
+}
+
+/* Returns the miss rate on the specified tile. */
+float tile_table_get_miss_rate(tile_table_t *table, int cpu)
+{
+	if (cpu < 0 || cpu >= table->num_cpu) {
+		return -1.0f;
+	} else {
+		return table->cpu_index[cpu].miss_rate;
+	}
+}
+
+/* Updates the miss rate on the specified tile. */
+int tile_table_set_miss_rate(tile_table_t *table, float miss_rate, int cpu)
+{
+	if (cpu < 0 || cpu >= table->num_cpu) {
+		return -1;
+	} else {
+		table->cpu_index[cpu].miss_rate = miss_rate;
 		return 0;
 	}
-	// Calculate new bucket vector size:
-	new_bucket_count = table->index[cpu].bucket_count;
-	do
-	{
-		new_bucket_count = new_bucket_count / 2;
-	} while (new_bucket_count > table->min_buckets
-			&& (new_bucket_count / 4) > table->index[cpu].entry_count);
-	// Reallocate bucket vector:
-	new_buckets = realloc(table->index[cpu].buckets,
-			new_bucket_count * sizeof(pid_t));
-	if (new_buckets == NULL )
-	{
-		return -1;
-	}
-	table->index[cpu].bucket_count = new_bucket_count;
-	table->index[cpu].buckets = new_buckets;
-	return 0;
 }

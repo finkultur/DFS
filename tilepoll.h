@@ -2,7 +2,7 @@
 #define TILEPOLL_H
 struct tilepoll_struct {
     int my_tile;
-    float *my_miss_rate;
+    tile_table_t *table;
     cpu_set_t *cpus;
 };
 #endif

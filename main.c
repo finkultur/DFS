@@ -25,7 +25,7 @@
 #include "sched_algs.h"
 #include "tilepoll.h"
 #include "perfcount.h"
-#include "proc_table.h"
+#include "tile_table.h"
 
 #define NUM_OF_CPUS 16
 #define TABLE_SIZE 8
@@ -39,14 +39,12 @@ int start_process(void);
 int children_is_still_alive(void);
 
 void cool_down_tile(int tile_num);
-void check_miss_rates(float *miss_rates);
+void check_miss_rates(void);
+void migrate_process(int pid, int new_tile);
 
 // Global values:
 int counter = 0;
-proc_table table;
-float miss_rates[NUM_OF_CPUS] = {1.0};
-float wr_miss_rates[NUM_OF_CPUS] = {1.0};
-float drd_miss_rates[NUM_OF_CPUS] = {1.0};
+tile_table_t *table;
 cmd_list list;
 cpu_set_t cpus;
 int last_program_started = 0;
@@ -93,8 +91,8 @@ int main(int argc, char *argv[]) {
         tmc_task_die("failure in 'tmc_set_my_cpu'");
     }
 
-    // Initialize proc_table
-    table = create_proc_table(NUM_OF_CPUS);
+    // Initialize tile_table
+    table = tile_table_create(NUM_OF_CPUS);
     // Parse the file and set next to first entry in file.
     if ((list = create_cmd_list(argv[1])) == NULL) {
         printf("Failed to create command list from file: %s\n", argv[1]);
@@ -109,7 +107,7 @@ int main(int argc, char *argv[]) {
     for (int i=0;i<NUM_OF_CPUS;i++) {
         t_args[i] = malloc(sizeof(struct tilepoll_struct));
         t_args[i]->my_tile = i;
-        t_args[i]->my_miss_rate = miss_rates; 
+        t_args[i]->table = table;
         t_args[i]->cpus = &cpus;
         pthread_create(&polling_threads[i], NULL, poll_my_pmcs, (void*) t_args[i]);
     }
@@ -140,10 +138,9 @@ int main(int argc, char *argv[]) {
         // Reap child
         child_pid = wait(NULL);
         if (child_pid > 0) {
-            child_tile_num = get_tile_num(table, child_pid);
-            remove_pid(table, child_pid);
+            tile_table_remove(table, child_pid);
         }
-        check_miss_rates(miss_rates);
+        check_miss_rates();
         sleep(5);
     }
 
@@ -159,17 +156,17 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void check_miss_rates(float *miss_array) {
+void check_miss_rates() {
     float total_miss_rate;
     float avg_miss_rate;
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        total_miss_rate += miss_array[i];
+        total_miss_rate += tile_table_get_miss_rate(table, i); 
     }
     avg_miss_rate = total_miss_rate / NUM_OF_CPUS;
 
     float limit = 1.5*avg_miss_rate;
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        if (miss_array[i] > limit) {
+        if (tile_table_get_miss_rate(table, i) > limit) {
             cool_down_tile(i); 
         } 
     } 
@@ -177,12 +174,18 @@ void check_miss_rates(float *miss_array) {
 
 void cool_down_tile(int tile_num) {
     int new_tile = get_tile(&cpus, table);
-//    pid_t pid_to_move = 
-//    migrate_process(table, pid 
+    pid_t pid_to_move = tile_table_get_minimum_pid(table, tile_num); 
+    migrate_process(pid_to_move, new_tile);
 }
 
 void migrate_process(int pid, int new_tile) {
+    if (tmc_cpus_set_task_cpu((tmc_cpus_find_nth_cpu(&cpus, new_tile)), pid) < 0) {
+        tmc_task_die("Failure in tmc_cpus_set_task_cpu (in migrate_process)");
+    }
+    tile_table_move(table, pid, new_tile);
 
+    // If you wanna print a debug message you have to implement a
+    // get_tile(table, pid) in tile_table
 }
 
 /*
@@ -247,8 +250,8 @@ int start_process() {
             return 1;
         }
         else {
-            // Add pid to proc table
-            add_pid(table, pid, tile_num, cmd->class);
+            // Add pid to tile table
+            tile_table_insert(table, pid, tile_num, cmd->class); 
         }
         remove_first(list);
     }
@@ -274,17 +277,17 @@ int start_process() {
  */
 int children_is_still_alive() {
     for (int i=0;i<NUM_OF_CPUS;i++) {
-        if (get_pid_count(table, i) != 0) {
+        if (tile_table_get_pid_count(table, i) != 0) {
             return 1;
         }
     }
     return 0;
 }
 
-void print_processes(proc_table table) {
+/*void print_processes(tile_table table) {
     for (int i=0;i<NUM_OF_CPUS;i++) {
         printf("Logical tile %i: %i processes, Miss-value: %f\n",
                i, get_pid_count(table, i), miss_rates[i]);
 
     }
-}
+}*/

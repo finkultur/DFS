@@ -8,6 +8,7 @@
 #include <tmc/task.h>
 
 #include "perfcount.h"
+#include "tile_table.h"
 #include "tilepoll.h"
 
 #define POLLING_INTERVAL 10
@@ -17,10 +18,12 @@ void *poll_my_pmcs(void *struct_with_all_args) {
     data = (struct tilepoll_struct *) struct_with_all_args;
 
     int my_tile = data->my_tile;
-    float *my_miss_rate = data->my_miss_rate;
+    tile_table_t *table_ptr = data->table; 
     cpu_set_t *cpus_ptr = data->cpus;
 
     int wr_miss, wr_cnt, drd_miss, drd_cnt; 
+
+    //free(data);
 
     // Set affinity   
     if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(cpus_ptr, my_tile)) < 0) {
@@ -37,7 +40,7 @@ void *poll_my_pmcs(void *struct_with_all_args) {
         read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
         clear_counters();
         // Push the data somewhere
-        my_miss_rate[my_tile] = ((float) (wr_miss+drd_miss)) / (wr_cnt+drd_cnt);
+        tile_table_set_miss_rate(table_ptr, ((float) (wr_miss+drd_miss)) / (wr_cnt+drd_cnt), my_tile);
         sleep(POLLING_INTERVAL);
     } 
 
