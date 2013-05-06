@@ -5,58 +5,66 @@
 #include <time.h>
 #include "tile_table.h"
 
-static const int num_cpu = 4;
-static const int num_pid = 2;
-static const int num_entry = 1000;
-
 // Performs a test of the tile_table module:
 int main(int argc, char *argv[])
 {
-	int n, pid, cpu;
-	int entry_cpu[num_entry];
-	pid_t entry_pid[num_entry];
-	tile_table table;
-
+	int n, num_cpu, num_entry, pid, cpu, class, status;
+	pid_t *entries;
+	tile_table_t *table;
+	// Check arguments:
+	if (argc != 3) {
+		printf("usage: %s <number of tiles> <number of entries>\n", argv[0]);
+		return 1;
+	}
+	num_cpu = atoi(argv[1]);
+	num_entry = atoi(argv[2]);
+	if (num_cpu <= 0 || num_entry <= 0) {
+		printf("invalid arguments\n");
+		return 1;
+	} else if ((entries = malloc(num_entry * sizeof(pid_t))) == NULL) {
+		printf("allocation failure\n");
+		return 1;
+	}
 	// Create table:
 	printf("creating table\n");
-	table = tt_create_table(num_cpu, num_pid);
-	if (table == NULL )
-	{
+	table = tile_table_create(num_cpu);
+	if (table == NULL) {
 		printf("failed!\n");
 		return 1;
 	}
 	printf("OK!\n");
-	// Seed rand():
-	srand(time(NULL ));
+	srand(time(NULL));
 	// Add entries:
 	printf("adding %i entries\n", num_entry);
-	for (n = 0; n < num_entry; n++)
-	{
+	for (n = 0; n < num_entry; n++) {
 		pid = rand();
 		cpu = rand() % num_cpu;
-		entry_pid[n] = pid;
-		entry_cpu[n] = cpu;
-		if (tt_add_pid(table, pid, cpu) != 0)
-		{
-			printf("failed!\n");
+		class = rand() % 4;
+		entries[n] = pid;
+		status = tile_table_insert(table, pid, cpu, class);
+		if (status == -1) {
+			printf("insert failure!\n");
 			return 1;
+		} else if (status == 1) {
+			printf("duplicate entry\n");
+			entries[n] = -1;
 		}
 	}
 	printf("OK!\n");
 	// Remove elements:
 	printf("removing each entry\n");
-	for (n = 0; n < num_entry; n++)
-	{
-		if (remove_pid_from_tile_table(table, entry_pid[n], entry_cpu[n]) != 0)
-		{
-			printf("failed!\n");
+	for (n = 0; n < num_entry; n++) {
+		if (entries[n] == -1) {
+			continue;
+		} else if (tile_table_remove(table, entries[n]) != 0) {
+			printf("remove failed!\n");
 			return 1;
 		}
 	}
 	printf("OK!\n");
 	// Destroy table
 	printf("destroying table\n");
-	tt_destroy_table(table);
+	tile_table_destroy(table);
 	printf("OK!\n");
 	return 0;
 }
