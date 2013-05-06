@@ -23,7 +23,6 @@
 // DFS
 #include "cmd_list.h"
 #include "sched_algs.h"
-#include "migrate.h"
 #include "tilepoll.h"
 #include "perfcount.h"
 #include "proc_table.h"
@@ -38,6 +37,9 @@ void end_handler(int, siginfo_t*, void*);
 // Functions that probably shouldn't be defined in main
 int start_process(void);
 int children_is_still_alive(void);
+
+void cool_down_tile(int tile_num);
+void check_miss_rates(float *miss_rates);
 
 // Global values:
 int counter = 0;
@@ -86,6 +88,11 @@ int main(int argc, char *argv[]) {
         tmc_task_die("Got wrong number of cpus: %i requested, got %i", NUM_OF_CPUS, tmc_cpus_count(&cpus));
     }
 
+    // Scheduler on tile #0
+    if (tmc_cpus_set_my_cpu(tmc_cpus_find_nth_cpu(&cpus, 0)) < 0) {
+        tmc_task_die("failure in 'tmc_set_my_cpu'");
+    }
+
     // Initialize proc_table
     table = create_proc_table(NUM_OF_CPUS);
     // Parse the file and set next to first entry in file.
@@ -93,19 +100,6 @@ int main(int argc, char *argv[]) {
         printf("Failed to create command list from file: %s\n", argv[1]);
         return 1;
     }
-
-    /* 
-    // Define a struct containing data to be sent to thread
-    struct poll_thread_struct *data = malloc(sizeof(struct poll_thread_struct));
-    data->proctable = table;
-    data->cpus = &cpus;
-    data->wr_miss_rates = wr_miss_rates;
-    data->drd_miss_rates = drd_miss_rates;
-
-    // Start the threads that polls the PMC registers
-    pthread_t poll_pmcs_thread;
-    pthread_create(&poll_pmcs_thread, NULL, poll_pmcs, (void*)data);
-    */
 
     // Define structs to be sent to threads
     struct tilepoll_struct *t_args[NUM_OF_CPUS];
@@ -149,6 +143,8 @@ int main(int argc, char *argv[]) {
             child_tile_num = get_tile_num(table, child_pid);
             remove_pid(table, child_pid);
         }
+        check_miss_rates(miss_rates);
+        sleep(5);
     }
 
     // Print start, end and total time elapsed.
@@ -161,6 +157,32 @@ int main(int argc, char *argv[]) {
     printf("Time elapsed: %lld\n", total_time);
 
     return 0;
+}
+
+void check_miss_rates(float *miss_array) {
+    float total_miss_rate;
+    float avg_miss_rate;
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        total_miss_rate += miss_array[i];
+    }
+    avg_miss_rate = total_miss_rate / NUM_OF_CPUS;
+
+    float limit = 1.5*avg_miss_rate;
+    for (int i=0;i<NUM_OF_CPUS;i++) {
+        if (miss_array[i] > limit) {
+            cool_down_tile(i); 
+        } 
+    } 
+}
+
+void cool_down_tile(int tile_num) {
+    int new_tile = get_tile(&cpus, table);
+//    pid_t pid_to_move = 
+//    migrate_process(table, pid 
+}
+
+void migrate_process(int pid, int new_tile) {
+
 }
 
 /*
