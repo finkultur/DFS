@@ -28,20 +28,47 @@ int get_cluster_with_min_contention(ctable_t *table)
 	if (empty_cluster >= 0) {
 		return empty_cluster;
 	}
-	/*
+
 	int best_cluster = 0;
-	int min_val = ctable_get_miss_rate(table, 0);
-	int new_val;
+	float min_val = calc_cluster_miss_rate(ctable_get_miss_rates(table), 0); 
+	float new_val;
 	for (int i = 0; i < NUM_OF_MEMORY_DOMAINS; i++) {
-		new_val = tile_table_get_cluster_miss_rate(i);
+		new_val = calc_cluster_miss_rate(ctable_get_miss_rates(table), i);
 		if (new_val < min_val) {
 			min_val = new_val;
 			best_cluster = i;
 		}
 	}
-	*/
-	//return best_cluster;
-	return 0;
+	return best_cluster;
+}
+
+/*
+ * Total miss rate per cluster
+ */
+float calc_cluster_miss_rate(const float **miss_rates, int cluster) 
+{
+    int init = (cluster % 2) * 4;
+    float cluster_miss_rate = 0;
+    for (int row = init; row <= (init + 4); row++) {
+        for (int col = init; col <= (init + 4); col++) {
+            cluster_miss_rate += miss_rates[col][row];
+        }
+    }
+    return cluster_miss_rate;
+}
+
+/*
+ * Total miss rate for ALL clusters
+ */
+float calc_total_miss_rate(const float **miss_rates) 
+{
+    float total_miss_rate = 0;
+    for (int x=0;x<8;x++) {
+        for (int y=0;y<8;y++) {
+            total_miss_rate += miss_rates[x][y];
+        }
+    }
+    return total_miss_rate;
 }
 
 /*
@@ -66,28 +93,27 @@ int get_empty_cluster(ctable_t *table)
  */
 void check_for_migration(cpu_set_t **clusters, ctable_t *table)
 {
-
 	int new_cluster;
-	float total_miss_rate = 0;
+	float total_miss_rate;
 	float avg_miss_rate;
+    const float **miss_rates;
+    float limit;
 
-	/*for (int i = 0; i < NUM_OF_MEMORY_DOMAINS; i++) {
-		total_miss_rate += tile_table_get_cluster_miss_rate(table, i);
-	}*/
+    miss_rates = ctable_get_miss_rates(table);    
+    total_miss_rate = calc_total_miss_rate(miss_rates);
 	avg_miss_rate = total_miss_rate / NUM_OF_MEMORY_DOMAINS;
+	limit = 1.5 * avg_miss_rate;
 
-	float limit = 1.5 * avg_miss_rate;
 	for (int i = 0; i < NUM_OF_MEMORY_DOMAINS; i++) {
-		/*if (ctable_get_cluster_miss_rate(table, i) > limit
-				&& tile_table_get_cluster_pid_count(table, i) > 1) {
+		if (calc_cluster_miss_rate(miss_rates, i) > limit && ctable_get_count(table, i) > 1) {
 
 			new_cluster = get_cluster_with_min_contention(table);
-			pid_t pid_to_move = get_cluster_min_pid(table, i);
+			pid_t pid_to_move = ctable_get_minimum_pid(table, i);
 			if (tmc_cpus_set_my_affinity(clusters[new_cluster])) {
 				tmc_task_die("sched_algs: Failure in tmc_cpus_set_my_affinity");
 			}
-			tile_table_move(table, pid_to_move, new_cluster);
-		}*/
+			ctable_move_pid(table, pid_to_move, new_cluster);
+		}
 	}
 
 }

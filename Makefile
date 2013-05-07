@@ -3,13 +3,13 @@ CC = /opt/tilepro/bin/tile-cc
 #CFLAGS = -Wall -g -O0
 CFLAGS = -Wall -O3
 LDFLAGS = -ltmc -lpthread -lrt
-SOURCES = main.c cmd_queue.c tile_table.c pid_set.c perfcount.c sched_algs.c
+SOURCES = main.c cmd_queue.c cluster_table.c pid_set.c perfcount.c sched_algs.c
 OBJECTS = $(SOURCES:.c=.o)
 EXECUTABLE = dfs.bin
 # Executing (using tile-monitor):
 MONITOR = /opt/tilepro/bin/tile-monitor
-MONARGS = --pci --tile 4x1 --hv-bin-dir /scratch/src/sys/hv --here --mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/
-EXEARGS = workload.txt 4
+MONARGS = --pci --tile 8x8 --hv-bin-dir /scratch/src/sys/hv --here --mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/
+EXEARGS = workloads/wl_test_1626_May4.txt 
 
 all: $(OBJECTS) $(EXECUTABLE)
 	

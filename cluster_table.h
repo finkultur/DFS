@@ -48,7 +48,7 @@ int ctable_set_miss_rate(ctable_t *table, int cluster, int index, float value);
 float cable_get_miss_rate(ctable_t *table, int cluster, int index);
 
 /**/
-const float **ctable_get_miss_rates(ctable_t *table);
+float **ctable_get_miss_rates(ctable_t *table);
 
 /* Returns the accumulated class value of all processes running on the specified
  * tile, or -1 on failure. */

@@ -107,10 +107,11 @@ int ctable_set_miss_rate(ctable_t *table, int column, int row, float value)
 	} else {
 		table->miss_rates[column][row] = value;
 	}
+    return 0;
 }
 
 /**/
-const float **ctable_get_miss_rates(ctable_t *table)
+float **ctable_get_miss_rates(ctable_t *table)
 {
 	return table->miss_rates;
 }

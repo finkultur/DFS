@@ -59,21 +59,31 @@ int main(int argc, char *argv[])
 	if (tmc_cpus_get_my_affinity(&all_cpus) != 0) {
 		tmc_task_die("failed to get cpu set\n");
 	}
-
+    
     // Save all online cpus to all_cpus
     tmc_cpus_get_online_cpus(&all_cpus);
 
     // Add 4 different grids with size 4x4 to different cpu_sets
-    tmc_cpus_grid_add_rect(clusters[0], 0, 0, 4, 4);
-    tmc_cpus_grid_add_rect(clusters[1], 4, 0, 4, 4);
-    tmc_cpus_grid_add_rect(clusters[2], 0, 4, 4, 4);
-    tmc_cpus_grid_add_rect(clusters[3], 4, 4, 4, 4);
+    tmc_cpus_grid_add_rect(&clusters[0], 0, 0, 4, 4);
+    tmc_cpus_grid_add_rect(&clusters[1], 4, 0, 4, 4);
+    tmc_cpus_grid_add_rect(&clusters[2], 0, 4, 4, 4);
+    tmc_cpus_grid_add_rect(&clusters[3], 4, 4, 4, 4);
 
     // Remove the tiles not online (e.g. reserved for I/O)
-    tmc_cpus_intersect_cpus(clusters[0], &all_cpus);
-    tmc_cpus_intersect_cpus(clusters[1], &all_cpus);
-    tmc_cpus_intersect_cpus(clusters[2], &all_cpus);
-    tmc_cpus_intersect_cpus(clusters[3], &all_cpus);
+    tmc_cpus_intersect_cpus(&clusters[0], &all_cpus);
+    tmc_cpus_intersect_cpus(&clusters[1], &all_cpus);
+    tmc_cpus_intersect_cpus(&clusters[2], &all_cpus);
+    tmc_cpus_intersect_cpus(&clusters[3], &all_cpus);
+
+    char str0[1024], str1[1024], str2[1024], str3[1024];
+    tmc_cpus_to_string(&clusters[0], str0, 1024);
+    printf("C0 to string: %s, %i cpus\n", str0, tmc_cpus_count(&clusters[0]));
+    tmc_cpus_to_string(&clusters[1], str1, 1024);
+    printf("C1 to string: %s, %i cpus\n", str1, tmc_cpus_count(&clusters[1]));
+    tmc_cpus_to_string(&clusters[2], str2, 1024);
+    printf("C2 to string: %s, %i cpus\n", str2, tmc_cpus_count(&clusters[2]));
+    tmc_cpus_to_string(&clusters[3], str3, 1024);
+    printf("C3 to string: %s, %i cpus\n", str3, tmc_cpus_count(&clusters[3]));
 
     // Initialize cluster table
 	table = ctable_create();
@@ -90,7 +100,6 @@ int main(int argc, char *argv[])
 	sigaddset(&signal_mask, SIGALRM);
 	sigaddset(&signal_mask, SIGPOLL);
 	sigprocmask(SIG_BLOCK, &signal_mask, NULL);
-
 	/* Create timers. */
 	run_commands_event.sigev_notify = SIGEV_SIGNAL;
 	run_commands_event.sigev_signo = SIGALRM;
@@ -99,6 +108,7 @@ int main(int argc, char *argv[])
 	scheduling_event.sigev_notify = SIGEV_SIGNAL;
 	scheduling_event.sigev_signo = SIGPOLL;
 	timer_create(CLOCK_REALTIME, &scheduling_event, &scheduling_timer);
+    printf("derp7\n");
 
 	/* Set counters and flags. */
 	current_time = 0;
@@ -268,12 +278,13 @@ static void *poll_my_pmcs(void *arg)
     int col = my_tile % 8;
 
     // Check if my_tile exists in cpu_set (not occupied by I/O for example)
-    if (tmc_cpus_has_cpu(&all_cpus, my_tile) > 0) {
+    if (tmc_cpus_has_cpu(&all_cpus, my_tile) > 0 && tmc_cpus_has_cpu(&all_cpus, my_tile)) {
         return NULL;
     }
 
     // Set affinity to that cpu
 	if (tmc_cpus_set_my_cpu(my_tile) < 0) {
+        printf("failure for tile %i\n", my_tile);
 		tmc_task_die("failure in 'tmc_set_my_cpu'");
 	}
 
