@@ -2,25 +2,26 @@
  *
  * Implementation of the pid_set.h module. */
 
-#include "pid_set.h"
 #include <stdlib.h>
+#include "pid_set.h"
 
 /* Type definition for a tree node. */
-typedef struct pset_node_struct node_t;
+typedef struct pid_set_node_struct node_t;
 
 /* Type definition for a node color. */
-typedef enum pset_node_color color_t;
+typedef enum pid_set_node_color color_t;
 
 /* Node color data type. */
-enum pset_node_color {
+enum pid_set_node_color {
 	RED = 0, BLACK = 1
 };
 
 /* Tree node (set entry) data type. */
-struct pset_node_struct {
+struct pid_set_node_struct {
 	pid_t pid; /* Key value. */
-	int cpu;
+	int cluster;
 	int class;
+
 	color_t color;
 	node_t *parent;
 	node_t *left;
@@ -28,7 +29,7 @@ struct pset_node_struct {
 };
 
 /* Set instance data type. */
-struct pset_struct {
+struct pid_set_struct {
 	size_t size;
 	node_t *root;
 };
@@ -37,8 +38,8 @@ struct pset_struct {
 static inline color_t get_color(node_t *node);
 static inline node_t *get_sibling(node_t *node);
 static node_t *find_node(pid_set_t *set, pid_t pid);
-static node_t *get_minimum_node(node_t *root, node_t *node, int cpu);
-static node_t *create_node(pid_t pid, int cpu, int class);
+static node_t *get_minimum_node(node_t *root, node_t *node, int cluster);
+static node_t *create_node(pid_t pid, int cluster, int class);
 static void free_tree_nodes(node_t *root);
 static void rotate_left(pid_set_t *set, node_t *node);
 static void rotate_right(pid_set_t *set, node_t *node);
@@ -62,12 +63,12 @@ void pid_set_destroy(pid_set_t *set)
 /* Inserts a new entry to the set. The new node is inserted with a simple
  * traversal of the binary search tree. After insertion, a helper function is
  * called to fix any red-black tree property violations. */
-int pid_set_insert(pid_set_t *set, pid_t pid, int cpu, int class)
+int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class)
 {
 	node_t *node, *next;
 	/* If set is empty. */
 	if (set->size == 0) {
-		node = create_node(pid, cpu, class);
+		node = create_node(pid, cluster, class);
 		if (node != NULL) {
 			node->color = BLACK;
 			set->root = node;
@@ -82,7 +83,7 @@ int pid_set_insert(pid_set_t *set, pid_t pid, int cpu, int class)
 	while (1) {
 		if (pid < next->pid) {
 			if (next->left == NULL) {
-				node = create_node(pid, cpu, class);
+				node = create_node(pid, cluster, class);
 				next->left = node;
 				break;
 			} else {
@@ -90,7 +91,7 @@ int pid_set_insert(pid_set_t *set, pid_t pid, int cpu, int class)
 			}
 		} else if (pid > next->pid) {
 			if (next->right == NULL) {
-				node = create_node(pid, cpu, class);
+				node = create_node(pid, cluster, class);
 				next->right = node;
 				break;
 			} else {
@@ -131,7 +132,7 @@ int pid_set_remove(pid_set_t *set, pid_t pid)
 			pred = pred->right;
 		}
 		node->pid = pred->pid;
-		node->cpu = pred->cpu;
+		node->cluster = pred->cluster;
 		node = pred;
 	}
 	/* Check if the node has a child (at most one here). */
@@ -175,23 +176,23 @@ size_t pid_set_get_size(pid_set_t *set)
 	return set->size;
 }
 
-/* Returns the tile allocation for the process ID. */
-int pid_set_get_cpu(pid_set_t *set, pid_t pid)
+/* Returns the cpu set allocation for the process ID. */
+int pid_set_get_cluster(pid_set_t *set, pid_t pid)
 {
 	node_t *node = find_node(set, pid);
 	if (node != NULL) {
-		return node->cpu;
+		return node->cluster;
 	} else {
 		return -1;
 	}
 }
 
-/* Sets the tile allocation for the process ID. */
-int pid_set_set_cpu(pid_set_t *set, pid_t pid, int cpu)
+/* Sets the cpu set allocation for the process ID. */
+int pid_set_set_cluster(pid_set_t *set, pid_t pid, int cluster)
 {
 	node_t *node = find_node(set, pid);
 	if (node != NULL) {
-		node->cpu = cpu;
+		node->cluster = cluster;
 	} else {
 		return -1;
 	}
@@ -222,14 +223,14 @@ int pid_set_set_class(pid_set_t *set, pid_t pid, int class)
 }
 
 /* Traverses the entire set looking for the entry with the lowest class value
- * for the tile. When found, the process ID is returned, or -1 on failure. */
-pid_t pid_set_get_minimum_pid(pid_set_t *set, int cpu)
+ * for the cpu set. When found, the process ID is returned, or -1 on failure. */
+pid_t pid_set_get_minimum_pid(pid_set_t *set, int cluster)
 {
 	node_t *node;
 	if (set->size == 0) {
 		return -1;
 	} else {
-		node = get_minimum_node(set->root, set->root, cpu);
+		node = get_minimum_node(set->root, set->root, cluster);
 	}
 	return node->pid;
 }
@@ -277,28 +278,28 @@ static node_t *find_node(pid_set_t *set, pid_t pid)
 
 /* Recursively traverses all nodes returning the one with the lowest class
  * value (first one found if multiple equal valued nodes exist) for the cpu. */
-node_t *get_minimum_node(node_t *root, node_t *node, int cpu)
+node_t *get_minimum_node(node_t *root, node_t *node, int cluster)
 {
 	node_t *left, *right;
-	if (root == NULL) {
+	if (root == NULL || node->class == 0) {
 		return node;
-	} else if (root->cpu == cpu && root->class < node->class) {
-		left = get_minimum_node(root->left, root, cpu);
-		right = get_minimum_node(root->right, root, cpu);
+	} else if (root->cluster == cluster && root->class < node->class) {
+		left = get_minimum_node(root->left, root, cluster);
+		right = get_minimum_node(root->right, root, cluster);
 	} else {
-		left = get_minimum_node(root->left, node, cpu);
-		right = get_minimum_node(root->right, node, cpu);
+		left = get_minimum_node(root->left, node, cluster);
+		right = get_minimum_node(root->right, node, cluster);
 	}
 	return ((left->class) <= (right->class) ? left : right);
 }
 
 /* Creates and initializes a new node. */
-static node_t *create_node(pid_t pid, int cpu, int class)
+static node_t *create_node(pid_t pid, int cluster, int class)
 {
 	node_t *node = malloc(sizeof(node_t));
 	if (node != NULL) {
 		node->pid = pid;
-		node->cpu = cpu;
+		node->cluster = cluster;
 		node->class = class;
 		node->color = RED; /* New nodes are red by default. */
 		node->parent = NULL;
@@ -554,7 +555,7 @@ static int assert_tree(node_t *root, int black_limit, int black_count)
  * 2: Red nodes have only black children.
  * 3: Every path from a node to a descendant leaf contains the same number
  *    of black nodes. */
-int pset_assert_set(pid_set_t *set)
+int pid_set_assert_set(pid_set_t *set)
 {
 	int black_limit;
 	/* Empty tree? */

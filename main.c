@@ -13,7 +13,7 @@
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 
-#include "tile_table.h"
+#include "cluster_table.h"
 
 #include "cmd_queue.h"
 
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 		pthread_create(&polling_threads[i], NULL, poll_my_pmcs, (void*) i);
 	}
 
-	/* Start the first process(es) from the command queue. 
+	/* Start the first process(es) from the command queue.
 	 * This will initialize the timer. */
 	run_commands(queue, 0);
 
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
         // If SIGCHLD, reap a child and remove it from tile_table.
 		case SIGCHLD:
 			while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
-				tile_table_remove(table, pid);
+				ctable_remove(table, pid);
 				printf("process %i terminated\n", pid);
 			}
 			if (pid == -1 && all_started) {
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
         // If SIGPOLL, Check for migration and (maybe) migrate.
 		case SIGPOLL:
 			printf("run scheduler\n");
-			check_for_migration(table);
+			check_for_migration(clusters, table);
 			printf("scheduling done\n");
 			break;
 
@@ -192,7 +192,7 @@ static void set_timer(timer_t *timer, int timeout)
 
 /*
  * Starts all processes with start_time less than or equal to the current
- * time/counter. 
+ * time/counter.
  *
  * For each new process it tries to get the cpu_set with the least contention
  * (might be a totally empty set).
@@ -263,7 +263,7 @@ static void *poll_my_pmcs(void *arg)
 	int wr_miss, wr_cnt, drd_miss, drd_cnt;
 	float miss_rate;
 
-    // Calculate row and column (to be sent to ctable) 
+    // Calculate row and column (to be sent to ctable)
     int row = my_tile / 8;
     int col = my_tile % 8;
 
@@ -272,7 +272,7 @@ static void *poll_my_pmcs(void *arg)
         return NULL;
     }
 
-    // Set affinity to that cpu	
+    // Set affinity to that cpu
 	if (tmc_cpus_set_my_cpu(my_tile) < 0) {
 		tmc_task_die("failure in 'tmc_set_my_cpu'");
 	}
