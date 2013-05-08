@@ -20,3 +20,9 @@
 # Vim swap files
 *.*.swp
 *.*.swo
+
+# Eclipse files
+.project
+.cproject
+.settings/*
+.tile_eclipse_preferences.xml
