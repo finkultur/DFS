@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <time.h>
+#include <arch/cycle.h>
 
 #include <tmc/cpus.h>
 #include <tmc/task.h>
@@ -111,11 +112,20 @@ void run_scheduler(void)
 	/* Calculate miss rates for each CPU cluster and a total over all CPU
 	 * clusters. */
 	total_miss_rate = 0.0f;
+    float miss_rate;
+    int start, row, column, end;
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-		if (active_clusters[cluster] == 1) {
-			cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster);
-			total_miss_rate += cluster_miss_rates[cluster];
-		}
+        miss_rate = 0;
+        start = (cluster % 2) * 4;
+        for (row = start, end = row + 4; row < end; row++) {
+            for (column = start, end = column + 4; column < end; column++) {
+                miss_rate += cpu_miss_rates[column][row];
+            }
+        }
+        cluster_miss_rates[cluster] = miss_rate;
+        total_miss_rate += miss_rate;
+	    //cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster);
+		//total_miss_rate += cluster_miss_rates[cluster];
 	}
 
 	/* Calculate an average cluster miss rate and an upper limit for
@@ -127,9 +137,10 @@ void run_scheduler(void)
 
 	/* Check all clusters for process migration. */
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-		if (active_clusters[cluster] == 0) {
+		/*if (active_clusters[cluster] == 0) {
 			continue;
-		} else if (cluster_miss_rates[cluster] > migration_limit
+		} else*/
+        if (cluster_miss_rates[cluster] > migration_limit
 				&& cluster_pids[cluster] > 1) {
 			migration_cluster = get_optimal_cluster();
             printf("optimal cluster seems to be %i\n", migration_cluster);
@@ -280,16 +291,16 @@ int set_timer(timer_t *timer, int timeout)
 /* Finds and returns the number of the cluster with least contention. */
 static int get_optimal_cluster(void)
 {
-	int cluster, optimal_cluster;
+	int optimal_cluster;
 	float miss_rate, best_miss_rate;
 
 	/* Find an active cluster with no running processes or select the cluster
 	 * with least contention (lowest miss rate). */
 	best_miss_rate = FLT_MAX;
-	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-		if (active_clusters[cluster] == 0) {
+	for (int cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
+		/*if (active_clusters[cluster] == 0) {
 			continue;
-		}
+		}*/
 		if (cluster_pids[cluster] == 0) {
 			return cluster;
 		} else {
@@ -303,10 +314,11 @@ static int get_optimal_cluster(void)
 	return optimal_cluster;
 }
 
-/* Returns the accumulated miss rate for all CPUs in the specified  CPU
+/* Returns the accumulated miss rate for all CPUs in the specified CPU
  * cluster. */
 static float get_cluster_miss_rate(int cluster)
 {
+    long long int start_cycles = get_cycle_count();
 	int start, end, row, column;
 	float miss_rate = 0.0f;
 
@@ -317,6 +329,8 @@ static float get_cluster_miss_rate(int cluster)
 			miss_rate += cpu_miss_rates[column][row];
 		}
 	}
+    long long int end_cycles = get_cycle_count();
+    printf("get_cluster_miss_rate(%i) took %llu cycles\n", cluster, end_cycles-start_cycles);
 	return miss_rate;
 }
 
