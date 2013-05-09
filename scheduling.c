@@ -184,6 +184,7 @@ int run_commands(void)
 	 * 0 if all commands have been started. */
 	if (cmd_queue_get_size(cmd_queue) > 0) {
 		timeout = cmd_queue_front(cmd_queue)->start - run_clock;
+        run_clock = cmd_queue_front(cmd_queue)->start;
 		return timeout;
 	} else {
 		all_started = 1;
