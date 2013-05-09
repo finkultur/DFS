@@ -12,12 +12,16 @@
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 
+#include <numa.h>
+#include <numaif.h> // Not sure if this is used.
+
 #include "pmc.h"
 #include "scheduling.h"
 
 /* Helper prototypes. */
 static int get_optimal_cluster(void);
 static float get_cluster_miss_rate(int cluster);
+static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 
 /* Initialize scheduler. */
 int init_scheduler(char *workload) {
@@ -50,6 +54,12 @@ int init_scheduler(char *workload) {
 	tmc_cpus_intersect_cpus(&cluster_sets[1], &online_set);
 	tmc_cpus_intersect_cpus(&cluster_sets[2], &online_set);
 	tmc_cpus_intersect_cpus(&cluster_sets[3], &online_set);
+
+    /* Initialize NUMA-stuff */
+    if (numa_available() < 0 || numa_max_node() == 0) {
+        fprintf(stderr, "Failed to initialize NUMA\n");
+        return -1;
+    }
 
 	/* Initialize scheduling variables. */
 	all_started = 0;
@@ -108,10 +118,12 @@ void run_scheduler(void)
 		}
 	}
 
-	/* Calculate an avergage cluster miss rate and an upper limit for
+	/* Calculate an average cluster miss rate and an upper limit for
 	 * process migration. */
 	average_miss_rate = total_miss_rate / active_cluster_count;
+    printf("avg miss rate is %f\n", average_miss_rate);
 	migration_limit = average_miss_rate * MIGRATION_FACTOR;
+    printf("migration limit is %f\n", migration_limit);
 
 	/* Check all clusters for process migration. */
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
@@ -120,12 +132,22 @@ void run_scheduler(void)
 		} else if (cluster_miss_rates[cluster] > migration_limit
 				&& cluster_pids[cluster] > 1) {
 			migration_cluster = get_optimal_cluster();
+            printf("optimal cluster seems to be %i\n", migration_cluster);
+            if (migration_cluster == cluster) {
+                printf("new and old cluster was the same :(\n");
+                return;
+            }
 			migration_pid = pid_set_get_minimum_pid(pid_set, cluster);
+            printf("pid to migrate is %i", migration_pid);
 			/* Migrate process by setting its CPU cluster affinity. */
 			if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster], migration_pid)) {
 				tmc_task_die("Failure in tmc_cpus_set_task_affinity()");
 			}
 			/* Migrate memory pages. */
+            printf("MIGRATE MEMORY FROM %i TO %i\n", cluster, migration_cluster);
+            if (migrate_memory(migration_pid, cluster, migration_cluster) < 0) {
+                printf("error in migrate_memory\n");
+            }
 			pid_set_set_cluster(pid_set, migration_pid, migration_cluster);
 			cluster_pids[cluster]--;
 			cluster_pids[migration_cluster]++;
@@ -274,6 +296,7 @@ static int get_optimal_cluster(void)
 			miss_rate = cluster_miss_rates[cluster];
 			if (miss_rate < best_miss_rate) {
 				optimal_cluster = cluster;
+                best_miss_rate = miss_rate;
 			}
 		}
 	}
@@ -295,4 +318,34 @@ static float get_cluster_miss_rate(int cluster)
 		}
 	}
 	return miss_rate;
+}
+
+/*
+ * Migrates the memory of a process to a new cluster.
+ */
+static int migrate_memory(pid_t pid, int old_cluster, int new_cluster) {
+
+    nodemask_t fromnodes;
+    nodemask_t tonodes;
+
+    // Tileras numbering of memory controllers goes clockwise,
+    // ours does not.
+    if (old_cluster == 2) {
+        old_cluster = 3;
+    } else if (old_cluster == 3) {
+        old_cluster = 2;
+    }
+    if (new_cluster == 2) {
+        new_cluster = 3;
+    } else if (new_cluster == 3) {
+        new_cluster = 2;
+    }
+
+    nodemask_zero(&fromnodes);
+    nodemask_zero(&tonodes);
+
+    nodemask_set(&fromnodes, old_cluster);
+    nodemask_set(&tonodes, new_cluster);
+
+    return numa_migrate_pages(pid, &fromnodes, &tonodes); 
 }

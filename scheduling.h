@@ -11,7 +11,7 @@
 #define SCHEDULING_INTERVAL 2
 
 /* Factor used to set a limit for when process migration should be performed. */
-#define MIGRATION_FACTOR 1.5f
+#define MIGRATION_FACTOR 1.1f
 
 /* TILEPRO64 CPU specifications. */
 #define CPU_COUNT 64

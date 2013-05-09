@@ -16,6 +16,7 @@
 *.out
 *.app
 *.bin
+./build/*
 
 # Vim swap files
 *.*.swp
