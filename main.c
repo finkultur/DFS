@@ -81,15 +81,10 @@ int main(int argc, char *argv[])
 			timeout = run_commands();
 			if (timeout > 0) {
 				set_timer(&command_timer, timeout);
-			} else {
-				timer_delete(&command_timer);
-			}
+            }
 			break;
 		case SIGCHLD:
 			await_processes();
-			if (all_terminated == 1) {
-				timer_delete(&scheduling_timer);
-			}
 			break;
 		default:
 			fprintf(stderr, "Caught an unknown signal\n");
