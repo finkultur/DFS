@@ -1,6 +1,7 @@
 /* main.c
  *
- * This is the DFS_NEXTGEN scheduler. */
+ * TODO: add description.
+ * Startup routine for the scheduler. */
 
 #include <signal.h>
 #include <stdio.h>
@@ -8,26 +9,27 @@
 
 #include "scheduling.h"
 
+/* Program start. */
 int main(int argc, char *argv[])
 {
-	int signal, clock, timeout;
-
+	int timeout, signal;
 	sigset_t signal_mask;
+	struct sigevent command_event, scheduling_event;
+	timer_t command_timer, scheduling_timer;
 
-	struct sigevent run_event, scheduling_event;
-	timer_t run_timer, scheduling_timer;
-
-	/* Check command line arguments. */
+	/* Check for valid command line arguments. */
 	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <inputfile>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <workload file>\n", argv[0]);
 		return 1;
 	}
 
-	/* Set counters and flags. */
-	clock = 0;
-	timeout = 0;
+	/* Initialize scheduler.  */
+	if (init_scheduler(argv[1]) != 0) {
+		fprintf(stderr, "Failed to initialize scheduler\n");
+		return 1;
+	}
 
-	// Set signal masks
+	/* Set signal mask, blocking SIGCHLD, SIGALRM and SIGPOLL. */
 	if (sigemptyset(&signal_mask) != 0
 			|| sigaddset(&signal_mask, SIGCHLD) != 0
 			|| sigaddset(&signal_mask, SIGALRM) != 0
@@ -37,61 +39,61 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	/* Create timers. */
-	run_event.sigev_notify = SIGEV_SIGNAL;
-	run_event.sigev_signo = SIGALRM;
-	scheduling_event.sigev_notify = SIGEV_SIGNAL;
-	scheduling_event.sigev_signo = SIGPOLL;
-	if (timer_create(CLOCK_REALTIME, &run_event, &run_timer) != 0) {
+	/* Create command start timer using SIGALRM. */
+	command_event.sigev_notify = SIGEV_SIGNAL;
+	command_event.sigev_signo = SIGALRM;
+	if (timer_create(CLOCK_REALTIME, &command_event, &command_timer) != 0) {
 		fprintf(stderr, "Failed to create command start timer\n");
 		return 1;
-	} else if (timer_create(CLOCK_REALTIME, &scheduling_event, &scheduling_timer) != 0) {
+	}
+
+	/* Create scheduling interval timer using SIGPOLL. */
+	scheduling_event.sigev_notify = SIGEV_SIGNAL;
+	scheduling_event.sigev_signo = SIGPOLL;
+	if (timer_create(CLOCK_REALTIME, &scheduling_event, &scheduling_timer) != 0) {
 		fprintf(stderr, "Failed to create scheduling timer\n");
 		return 1;
 	}
 
-
-	init_scheduler(argv[1]);
-
-	/* Set timers. */
+	/* Set scheduling timer. */
 	set_timer(&scheduling_timer, SCHEDULING_INTERVAL);
 
-	if ((timeout = run_commands(clock)) > 0) {
-		set_timer(&run_timer, timeout);
+	/* Set command startup timer only if needed. */
+	if ((timeout = run_commands()) > 0) {
+		set_timer(&command_timer, timeout);
 	} else {
-		all_started = 1;
-		timer_delete(&run_timer);
+		timer_delete(&command_timer);
 	}
 
-	/* Listen for signals. */
-	while (!all_terminated) {
+	/* Listen for signals and take appropriate actions until all commands
+	 * are terminated. */
+	while (all_terminated == 0) {
 		sigwait(&signal_mask, &signal);
 		switch (signal) {
 		case SIGPOLL:
 			run_scheduler();
 			break;
 		case SIGALRM:
-			timeout = run_commands(clock);
+			timeout = run_commands();
 			if (timeout > 0) {
-				set_timer(&run_timer, timeout);
+				set_timer(&command_timer, timeout);
 			} else {
-				all_started = 1;
-				timer_delete(&run_timer);
+				timer_delete(&command_timer);
 			}
 			break;
 		case SIGCHLD:
-			if (await_processes() < 0 && all_started) {
-				all_terminated = 1;
+			await_processes();
+			if (all_terminated == 1) {
 				timer_delete(&scheduling_timer);
 			}
 			break;
 		default:
-			fprintf(stderr, "Caught an invalid signal\n");
+			fprintf(stderr, "Caught an unknown signal\n");
 			break;
 		}
 	}
 
-
+	/* Join PMC polling threads. */
 
 	return 0;
 }
