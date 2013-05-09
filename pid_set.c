@@ -19,8 +19,8 @@ enum pid_set_node_color {
 /* Tree node (set entry) data type. */
 struct pid_set_node_struct {
 	pid_t pid; /* Key value. */
-	size_t cluster;
-	size_t class;
+	int cluster;
+	int class;
 
 	color_t color;
 	node_t *parent;
@@ -38,8 +38,8 @@ struct pid_set_struct {
 static inline color_t get_color(node_t *node);
 static inline node_t *get_sibling(node_t *node);
 static node_t *find_node(pid_set_t *set, pid_t pid);
-static node_t *get_minimum_node(node_t *root, node_t *node, size_t cluster);
-static node_t *create_node(pid_t pid, size_t cluster, size_t class);
+static node_t *get_minimum_node(node_t *root, node_t *node, int cluster);
+static node_t *create_node(pid_t pid, int cluster, int class);
 static void free_tree_nodes(node_t *root);
 static void rotate_left(pid_set_t *set, node_t *node);
 static void rotate_right(pid_set_t *set, node_t *node);
@@ -63,7 +63,7 @@ void pid_set_destroy(pid_set_t *set)
 /* Inserts a new entry to the set. The new node is inserted with a simple
  * traversal of the binary search tree. After insertion, a helper function is
  * called to fix any red-black tree property violations. */
-int pid_set_insert(pid_set_t *set, pid_t pid, size_t cluster, size_t class)
+int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class)
 {
 	node_t *node, *next;
 	/* If set is empty. */
@@ -188,7 +188,7 @@ int pid_set_get_cluster(pid_set_t *set, pid_t pid)
 }
 
 /* Sets the cpu set allocation for the process ID. */
-int pid_set_set_cluster(pid_set_t *set, pid_t pid, size_t cluster)
+int pid_set_set_cluster(pid_set_t *set, pid_t pid, int cluster)
 {
 	node_t *node = find_node(set, pid);
 	if (node != NULL) {
@@ -211,7 +211,7 @@ int pid_set_get_class(pid_set_t *set, pid_t pid)
 }
 
 /* Sets the class for the process ID. */
-int pid_set_set_class(pid_set_t *set, pid_t pid, size_t class)
+int pid_set_set_class(pid_set_t *set, pid_t pid, int class)
 {
 	node_t *node = find_node(set, pid);
 	if (node != NULL) {
@@ -224,7 +224,7 @@ int pid_set_set_class(pid_set_t *set, pid_t pid, size_t class)
 
 /* Traverses the entire set looking for the entry with the lowest class value
  * for the cpu set. When found, the process ID is returned, or -1 on failure. */
-pid_t pid_set_get_minimum_pid(pid_set_t *set, size_t cluster)
+pid_t pid_set_get_minimum_pid(pid_set_t *set, int cluster)
 {
 	node_t *node;
 	if (set->size == 0) {
@@ -278,7 +278,7 @@ static node_t *find_node(pid_set_t *set, pid_t pid)
 
 /* Recursively traverses all nodes returning the one with the lowest class
  * value (first one found if multiple equal valued nodes exist) for the cpu. */
-node_t *get_minimum_node(node_t *root, node_t *node, size_t cluster)
+node_t *get_minimum_node(node_t *root, node_t *node, int cluster)
 {
 	node_t *left, *right;
 	if (root == NULL || node->class == 0) {
@@ -294,7 +294,7 @@ node_t *get_minimum_node(node_t *root, node_t *node, size_t cluster)
 }
 
 /* Creates and initializes a new node. */
-static node_t *create_node(pid_t pid, size_t cluster, size_t class)
+static node_t *create_node(pid_t pid, int cluster, int class)
 {
 	node_t *node = malloc(sizeof(node_t));
 	if (node != NULL) {

@@ -1,4 +1,6 @@
-/* pmc.c */
+/* pmc.c
+ *
+ * Implementation of PMC register handling routines. */
 
 #include "pmc.h"
 

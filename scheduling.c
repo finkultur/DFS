@@ -16,8 +16,8 @@
 #include "scheduling.h"
 
 /* Helper prototypes. */
-static int best_cluster(void);
-static float calc_cluster_miss_rate(int cluster);
+static int get_optimal_cluster(void);
+static float get_cluster_miss_rate(int cluster);
 
 /* Initialize scheduler. */
 int init_scheduler(char *workload) {
@@ -103,7 +103,7 @@ void run_scheduler(void)
 	total_miss_rate = 0.0f;
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
 		if (active_clusters[cluster] == 1) {
-			cluster_miss_rates[cluster] = calc_cluster_miss_rate(cluster);
+			cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster);
 			total_miss_rate += cluster_miss_rates[cluster];
 		}
 	}
@@ -119,7 +119,7 @@ void run_scheduler(void)
 			continue;
 		} else if (cluster_miss_rates[cluster] > migration_limit
 				&& cluster_pids[cluster] > 1) {
-			migration_cluster = best_cluster();
+			migration_cluster = get_optimal_cluster();
 			migration_pid = pid_set_get_minimum_pid(pid_set, cluster);
 			/* Migrate process by setting its CPU cluster affinity. */
 			if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster], migration_pid)) {
@@ -142,7 +142,7 @@ int run_commands(void)
 	/* Start all command queued for start at the current time. */
 	while ((cmd = cmd_queue_front(cmd_queue)) != NULL
 			&& cmd->start <= run_clock) {
-		cluster = best_cluster();
+		cluster = get_optimal_cluster();
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stderr, "Failed to fork process\n");
@@ -240,41 +240,53 @@ void *read_pmc(void *arg)
 	return NULL;
 }
 
+/* Sets the timeout of the specified timer. */
 int set_timer(timer_t *timer, int timeout)
 {
 	struct itimerspec value;
 	value.it_interval.tv_sec = timeout;
 	value.it_interval.tv_nsec = 0;
 	value.it_value = value.it_interval;
-	return timer_settime(*timer, 0, &value, NULL);
+	if (timer_settime(*timer, 0, &value, NULL) != 0) {
+		fprintf(stderr, "Failed to set timer\n");
+		return -1;
+	}
+	return 0;
 }
 
-// HELPER FUNCTIONS
-static int best_cluster(void)
+/* Finds and returns the number of the cluster with least contention. */
+static int get_optimal_cluster(void)
 {
-	int cluster, best_cluster;
+	int cluster, optimal_cluster;
 	float miss_rate, best_miss_rate;
 
+	/* Find an active cluster with no running processes or select the cluster
+	 * with least contention (lowest miss rate). */
 	best_miss_rate = FLT_MAX;
-
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
+		if (active_clusters[cluster] == 0) {
+			continue;
+		}
 		if (cluster_pids[cluster] == 0) {
 			return cluster;
-		} else if (cluster_pids[cluster] > 0) {
+		} else {
 			miss_rate = cluster_miss_rates[cluster];
 			if (miss_rate < best_miss_rate) {
-				best_cluster = cluster;
+				optimal_cluster = cluster;
 			}
 		}
 	}
-	return best_cluster;
+	return optimal_cluster;
 }
 
-static float calc_cluster_miss_rate(int cluster)
+/* Returns the accumulated miss rate for all CPUs in the specified  CPU
+ * cluster. */
+static float get_cluster_miss_rate(int cluster)
 {
 	int start, end, row, column;
 	float miss_rate = 0.0f;
 
+	/* Accumulate miss rates for all CPUs in cluster. */
 	start = (cluster % 2) * 4;
 	for (row = start, end = row + 4; row < end; row++) {
 		for (column = start, end = column + 4; column < end; column++) {

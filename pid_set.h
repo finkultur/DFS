@@ -26,7 +26,7 @@ void pid_set_destroy(pid_set_t *set);
  * class to the specified set. 0 is returned on success and -1 on failure. If
  * an entry with an equal process ID already exist nothing is done and 1 is
  * returned. */
-int pid_set_insert(pid_set_t *set, pid_t pid, size_t cluster, size_t class);
+int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class);
 
 /* Removes the entry matching the specified process ID from the specified set.
  * On success 0 is returned, otherwise -1. */
@@ -42,7 +42,7 @@ int pid_set_get_cluster(pid_set_t *set, pid_t pid);
 /* Searches the specified set for an entry with a matching process ID. On
  * success the entry is updated with the specified cluster and 0 is returned,
  * otherwise -1. */
-int pid_set_set_cluster(pid_set_t *set, pid_t pid, size_t cluster);
+int pid_set_set_cluster(pid_set_t *set, pid_t pid, int cluster);
 
 /* Searches the specified set for an entry matching the specified process ID.
  * On success the class value of the entry is returned, otherwise -1. */
@@ -51,12 +51,12 @@ int pid_set_get_class(pid_set_t *set, pid_t pid);
 /* Searches the specified set for an entry matching the specified process ID.
  * On success the entry is updated with the specified process class and 0 is
  * returned, otherwise -1. */
-int pid_set_set_class(pid_set_t *set, pid_t pid, size_t class);
+int pid_set_set_class(pid_set_t *set, pid_t pid, int class);
 
 /* Returns the process ID of the set entry with the lowest class value for the
  * specified cluster. If multiple entries with the same lowest class value
  * exist, the first one encountered is returned. */
-pid_t pid_set_get_minimum_pid(pid_set_t *set, size_t cluster);
+pid_t pid_set_get_minimum_pid(pid_set_t *set, int cluster);
 
 /* Asserts that the set adheres to the properties of the data structure. */
 int pid_set_assert_set(pid_set_t *set);

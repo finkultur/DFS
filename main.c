@@ -12,10 +12,14 @@
 /* Program start. */
 int main(int argc, char *argv[])
 {
-	int timeout, signal;
+	int i, timeout, signal;
 	sigset_t signal_mask;
 	struct sigevent command_event, scheduling_event;
 	timer_t command_timer, scheduling_timer;
+	time_t start_time, end_time;
+
+	/* Set start time. */
+	start_time = time(NULL);
 
 	/* Check for valid command line arguments. */
 	if (argc != 2) {
@@ -94,6 +98,16 @@ int main(int argc, char *argv[])
 	}
 
 	/* Join PMC polling threads. */
+	for (i = 0; i < CPU_COUNT; i++) {
+		if (pmc_threads[i] != 0) {
+			pthread_join(pmc_threads[i], NULL);
+		}
+	}
+
+	/* Set end time. */
+	end_time = time(NULL);
+
+	printf("Execution time: %f\n", difftime(end_time, start_time));
 
 	return 0;
 }
