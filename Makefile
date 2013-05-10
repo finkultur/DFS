@@ -10,14 +10,14 @@ BUILDDIR = ./build
 # Executing (using tile-monitor):
 MONITOR = /opt/tilepro/bin/tile-monitor
 MONARGS = --pci --tile 8x8 --hv-bin-dir /scratch/src/sys/hv --hvc /scratch/vmlinux-pci.hvc --upload /opt/tilepro/tile/usr/lib/libnuma.so.1 /usr/lib/libnuma.so.1 --here --mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/
-EXEARGS = workloads/wl_test_derp.txt #workloads/wl_test_May9_1620.txt #workloads/wl_test_1626_May4.txt 
+EXEARGS = workloads/wl_test_derp.txt#workloads/wl_test_4_mcftest.txt #workloads/wl_test_derp.txt #workloads/wl_test_May9_1620.txt #workloads/wl_test_1626_May4.txt 
 
 all: $(OBJECTS) $(EXECUTABLE)
 	
 clean:
 	rm -f $(OBJECTS) $(EXECUTABLE)
 
-run: all
+run: clean all
 	$(MONITOR) $(MONARGS) -- $(EXECUTABLE) $(EXEARGS)  
 
 $(EXECUTABLE): $(OBJECTS)

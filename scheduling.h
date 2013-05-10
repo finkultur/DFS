@@ -8,16 +8,18 @@
 
 /* Interval lengths for reading of PMC registers and scheduling. */
 #define PMC_READ_INTERVAL 1
-#define SCHEDULING_INTERVAL 2
+#define SCHEDULING_INTERVAL 10
 
 /* Factor used to set a limit for when process migration should be performed. */
-#define MIGRATION_FACTOR 1.5f
+#define MIGRATION_FACTOR 1.5
 
 /* TILEPRO64 CPU specifications. */
 #define CPU_COUNT 64
 #define CPU_CLUSTERS 4
 #define CPU_COLUMNS 8
 #define CPU_ROWS 8
+
+#define A_VERY_LARGE_NUMBER 2100000000
 
 /* Flag values indicating when all commands from the workload have been started
  * and when all corresponding processes are terminated. */
@@ -37,10 +39,10 @@ int active_clusters[CPU_CLUSTERS];
 int cluster_pids[CPU_CLUSTERS];
 
 /* Last calculated miss rate for each CPU cluster. */
-float cluster_miss_rates[CPU_CLUSTERS];
+int cluster_miss_rates[CPU_CLUSTERS];
 
 /* Last calculated miss rate for each CPU. */
-float cpu_miss_rates[CPU_COLUMNS][CPU_ROWS];
+int cpu_miss_rates[CPU_COUNT];
 
 /* Command queue. */
 cmd_queue_t *cmd_queue;

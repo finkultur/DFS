@@ -122,6 +122,7 @@ static int read_lines(char *filename, cmd_queue_t *queue)
 			break;
 		}
 	}
+    fclose(input);
 	return queue->size;
 }
 

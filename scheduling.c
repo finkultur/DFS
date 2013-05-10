@@ -4,7 +4,6 @@
  * Scheduling routines. */
 
 #include <fcntl.h>
-#include <float.h>
 #include <stdio.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -21,12 +20,12 @@
 
 /* Helper prototypes. */
 static int get_optimal_cluster(void);
-static float get_cluster_miss_rate(int cluster);
+static int get_cluster_miss_rate(int cluster);
 static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 
 /* Initialize scheduler. */
 int init_scheduler(char *workload) {
-	int i, row, column;
+	int i;
 
 	/* Initialize command queue. */
 	cmd_queue = cmd_queue_create(workload);
@@ -80,12 +79,10 @@ int init_scheduler(char *workload) {
 		cluster_miss_rates[i] = 0.0f;
 	}
 
-	/* Initialize CPU miss rate matrix. */
-	for (row = 0; row < CPU_ROWS; row++) {
-		for (column = 0; column < CPU_COLUMNS; column++) {
-			cpu_miss_rates[row][column] = 0.0f;
-		}
-	}
+	/* Initialize CPU miss rate array */
+    for (i=0;i<CPU_COUNT;i++) {
+        cpu_miss_rates[i] = 0;
+    }
 
 	/* Start PMC reading threads one each CPU. */
 	for (i = 0; i < CPU_COUNT; i++) {
@@ -104,44 +101,29 @@ int init_scheduler(char *workload) {
 void run_scheduler(void)
 {
 	int cluster, migration_cluster;
-	float total_miss_rate;
-	float average_miss_rate;
-	float migration_limit;
+    int total_miss_rate;
+    int average_miss_rate;
+    int migration_limit;
 	pid_t migration_pid;
 
 	/* Calculate miss rates for each CPU cluster and a total over all CPU
 	 * clusters. */
-	total_miss_rate = 0.0f;
-    float miss_rate;
-    int start, row, column, end;
+	total_miss_rate = 0;
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-        miss_rate = 0;
-        start = (cluster % 2) * 4;
-        for (row = start, end = row + 4; row < end; row++) {
-            for (column = start, end = column + 4; column < end; column++) {
-                miss_rate += cpu_miss_rates[column][row];
-            }
-        }
-        cluster_miss_rates[cluster] = miss_rate;
-        total_miss_rate += miss_rate;
-	    //cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster);
-		//total_miss_rate += cluster_miss_rates[cluster];
+        cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster); 
+        total_miss_rate += cluster_miss_rates[cluster];
 	}
 
 	/* Calculate an average cluster miss rate and an upper limit for
 	 * process migration. */
 	average_miss_rate = total_miss_rate / active_cluster_count;
-    printf("avg miss rate is %f\n", average_miss_rate);
+    printf("avg miss rate is %i\n", average_miss_rate);
 	migration_limit = average_miss_rate * MIGRATION_FACTOR;
-    printf("migration limit is %f\n", migration_limit);
+    printf("migration limit is %i\n", migration_limit);
 
 	/* Check all clusters for process migration. */
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-		/*if (active_clusters[cluster] == 0) {
-			continue;
-		} else*/
-        if (cluster_miss_rates[cluster] > migration_limit
-				&& cluster_pids[cluster] > 1) {
+        if (cluster_miss_rates[cluster] > migration_limit && cluster_pids[cluster] > 1) {
 			migration_cluster = get_optimal_cluster();
             printf("optimal cluster seems to be %i\n", migration_cluster);
             if (migration_cluster == cluster) {
@@ -150,11 +132,11 @@ void run_scheduler(void)
             }
 			migration_pid = pid_set_get_minimum_pid(pid_set, cluster);
             printf("pid to migrate is %i", migration_pid);
-			/* Migrate process by setting its CPU cluster affinity. */
+			// Migrate process by setting its CPU cluster affinity. 
 			if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster], migration_pid)) {
 				tmc_task_die("Failure in tmc_cpus_set_task_affinity()");
 			}
-			/* Migrate memory pages. */
+			// Migrate memory pages.
             printf("MIGRATE MEMORY FROM %i TO %i\n", cluster, migration_cluster);
             if (migrate_memory(migration_pid, cluster, migration_cluster) < 0) {
                 printf("error in migrate_memory\n");
@@ -245,14 +227,13 @@ void await_processes(void)
 /* Periodically read PMC register values and calculate the miss rate. */
 void *read_pmc(void *arg)
 {
-	int cpu, row, column;
-	int wr_miss, wr_cnt, drd_miss, drd_cnt;
-	float miss_rate;
+	int cpu;
+	//int wr_miss, wr_cnt, drd_miss, drd_cnt;
+    int wr_miss, drd_miss, bundles, data_cache_stalls;
+    int miss_rate;
 	struct timespec interval;
 
 	cpu = (int) arg;
-	row = cpu / CPU_ROWS;
-	column = cpu % CPU_COLUMNS;
 	interval.tv_sec = PMC_READ_INTERVAL;
 	interval.tv_nsec = 0;
 	/* Set thread affinity. */
@@ -262,14 +243,17 @@ void *read_pmc(void *arg)
 	}
 	/* Setup PMC registers. */
 	clear_counters();
-	setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
+	//setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
+    setup_counters(LOCAL_WR_MISS, LOCAL_DRD_MISS, BUNDLES_RETIRED, DATA_CACHE_STALL);
 	/* Periodically read registers, calculate miss rate and store value. */
 	while (all_terminated == 0) {
-		read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
+		//read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
+        read_counters(&wr_miss, &drd_miss, &bundles, &data_cache_stalls);
 		clear_counters();
-		miss_rate = ((float) (wr_miss + drd_miss)) / (wr_cnt + drd_cnt);
-		cpu_miss_rates[column][row] = miss_rate;
-		nanosleep(&interval, NULL);
+        //miss_rate = (wr_miss + drd_miss) / (wr_cnt + drd_cnt);
+        miss_rate = ((wr_miss + drd_miss)*1000) / (bundles);
+        cpu_miss_rates[cpu] = miss_rate;
+   		nanosleep(&interval, NULL);
 	}
 	return NULL;
 }
@@ -292,15 +276,11 @@ int set_timer(timer_t *timer, int timeout)
 static int get_optimal_cluster(void)
 {
 	int optimal_cluster;
-	float miss_rate, best_miss_rate;
-
+    int miss_rate, best_miss_rate;
 	/* Find an active cluster with no running processes or select the cluster
 	 * with least contention (lowest miss rate). */
-	best_miss_rate = FLT_MAX;
+    best_miss_rate = A_VERY_LARGE_NUMBER;
 	for (int cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-		/*if (active_clusters[cluster] == 0) {
-			continue;
-		}*/
 		if (cluster_pids[cluster] == 0) {
 			return cluster;
 		} else {
@@ -316,22 +296,23 @@ static int get_optimal_cluster(void)
 
 /* Returns the accumulated miss rate for all CPUs in the specified CPU
  * cluster. */
-static float get_cluster_miss_rate(int cluster)
-{
-    long long int start_cycles = get_cycle_count();
-	int start, end, row, column;
-	float miss_rate = 0.0f;
+static int get_cluster_miss_rate(int cluster) {
 
-	/* Accumulate miss rates for all CPUs in cluster. */
-	start = (cluster % 2) * 4;
-	for (row = start, end = row + 4; row < end; row++) {
-		for (column = start, end = column + 4; column < end; column++) {
-			miss_rate += cpu_miss_rates[column][row];
-		}
-	}
-    long long int end_cycles = get_cycle_count();
-    printf("get_cluster_miss_rate(%i) took %llu cycles\n", cluster, end_cycles-start_cycles);
-	return miss_rate;
+    int miss_rates = 0;
+    int start;
+    if (cluster == 0) start = 0;
+    else if (cluster == 1) start = 4;
+    else if (cluster == 2) start = 32;
+    else if (cluster == 3) start = 36;
+
+    for (int i=0;i<4;i++) {
+        miss_rates += cpu_miss_rates[start++];
+        miss_rates += cpu_miss_rates[start++];
+        miss_rates += cpu_miss_rates[start++];
+        miss_rates += cpu_miss_rates[start++];
+        start += 4;
+    } 
+    return miss_rates;
 }
 
 /*

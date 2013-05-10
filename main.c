@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	if ((timeout = run_commands()) > 0) {
 		set_timer(&command_timer, timeout);
 	} else {
-		timer_delete(&command_timer);
+		timer_delete(command_timer);
 	}
 
 	/* Listen for signals and take appropriate actions until all commands
@@ -85,6 +85,9 @@ int main(int argc, char *argv[])
 			break;
 		case SIGCHLD:
 			await_processes();
+            if (all_terminated) {
+                timer_delete(scheduling_timer);
+            }
 			break;
 		default:
 			fprintf(stderr, "Caught an unknown signal\n");
