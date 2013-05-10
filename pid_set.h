@@ -26,7 +26,7 @@ void pid_set_destroy(pid_set_t *set);
  * class to the specified set. 0 is returned on success and -1 on failure. If
  * an entry with an equal process ID already exist nothing is done and 1 is
  * returned. */
-int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class);
+int pid_set_insert(pid_set_t *set, pid_t pid, int cpu, int cluster, int class);
 
 /* Removes the entry matching the specified process ID from the specified set.
  * On success 0 is returned, otherwise -1. */
@@ -34,6 +34,12 @@ int pid_set_remove(pid_set_t *set, pid_t pid);
 
 /* Returns the number of entries in the specified set. */
 size_t pid_set_get_size(pid_set_t *set);
+
+// TODO: comment pid_set_get_cpu()
+int pid_set_get_cpu(pid_set_t *set, pid_t pid);
+
+// TODO: comment pid_set_set_cpu()
+int pid_set_set_cpu(pid_set_t *set, pid_t pid, int cpu);
 
 /* Searches the specified set for an entry matching the specified process ID.
  * On success the cluster allocated to the process is returned, otherwise -1. */

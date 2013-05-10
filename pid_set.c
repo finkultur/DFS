@@ -19,6 +19,7 @@ enum pid_set_node_color {
 /* Tree node (set entry) data type. */
 struct pid_set_node_struct {
 	pid_t pid; /* Key value. */
+	int cpu;
 	int cluster;
 	int class;
 
@@ -39,7 +40,7 @@ static inline color_t get_color(node_t *node);
 static inline node_t *get_sibling(node_t *node);
 static node_t *find_node(pid_set_t *set, pid_t pid);
 static node_t *get_minimum_node(node_t *root, node_t *node, int cluster);
-static node_t *create_node(pid_t pid, int cluster, int class);
+static node_t *create_node(pid_t pid, int cpu, int cluster, int class);
 static void free_tree_nodes(node_t *root);
 static void rotate_left(pid_set_t *set, node_t *node);
 static void rotate_right(pid_set_t *set, node_t *node);
@@ -63,12 +64,12 @@ void pid_set_destroy(pid_set_t *set)
 /* Inserts a new entry to the set. The new node is inserted with a simple
  * traversal of the binary search tree. After insertion, a helper function is
  * called to fix any red-black tree property violations. */
-int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class)
+int pid_set_insert(pid_set_t *set, pid_t pid, int cpu, int cluster, int class)
 {
 	node_t *node, *next;
 	/* If set is empty. */
 	if (set->size == 0) {
-		node = create_node(pid, cluster, class);
+		node = create_node(pid, cpu, cluster, class);
 		if (node != NULL) {
 			node->color = BLACK;
 			set->root = node;
@@ -83,7 +84,7 @@ int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class)
 	while (1) {
 		if (pid < next->pid) {
 			if (next->left == NULL) {
-				node = create_node(pid, cluster, class);
+				node = create_node(pid, cpu, cluster, class);
 				next->left = node;
 				break;
 			} else {
@@ -91,7 +92,7 @@ int pid_set_insert(pid_set_t *set, pid_t pid, int cluster, int class)
 			}
 		} else if (pid > next->pid) {
 			if (next->right == NULL) {
-				node = create_node(pid, cluster, class);
+				node = create_node(pid, cpu, cluster, class);
 				next->right = node;
 				break;
 			} else {
@@ -174,6 +175,29 @@ int pid_set_remove(pid_set_t *set, pid_t pid)
 size_t pid_set_get_size(pid_set_t *set)
 {
 	return set->size;
+}
+
+// TODO: comment pid_set_get_cpu()
+int pid_set_get_cpu(pid_set_t *set, pid_t pid)
+{
+	node_t *node = find_node(set, pid);
+	if (node != NULL) {
+		return node->cpu;
+	} else {
+		return -1;
+	}
+}
+
+// TODO: comment pid_set_set_cpu()
+int pid_set_set_cpu(pid_set_t *set, pid_t pid, int cpu)
+{
+	node_t *node = find_node(set, pid);
+	if (node != NULL) {
+		node->cpu = cpu;
+	} else {
+		return -1;
+	}
+	return 0;
 }
 
 /* Returns the cpu set allocation for the process ID. */
@@ -294,11 +318,12 @@ node_t *get_minimum_node(node_t *root, node_t *node, int cluster)
 }
 
 /* Creates and initializes a new node. */
-static node_t *create_node(pid_t pid, int cluster, int class)
+static node_t *create_node(pid_t pid, int cpu, int cluster, int class)
 {
 	node_t *node = malloc(sizeof(node_t));
 	if (node != NULL) {
 		node->pid = pid;
+		node->cpu = cpu;
 		node->cluster = cluster;
 		node->class = class;
 		node->color = RED; /* New nodes are red by default. */

@@ -14,17 +14,18 @@
 
 #include <numa.h>
 #include <numaif.h> // Not sure if this is used.
-
 #include "pmc.h"
 #include "scheduling.h"
 
 /* Helper prototypes. */
 static int get_optimal_cluster(void);
+static int get_optimal_cpu(int cluster);
 static int get_cluster_miss_rate(int cluster);
 static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 
 /* Initialize scheduler. */
-int init_scheduler(char *workload) {
+int init_scheduler(char *workload)
+{
 	int i;
 
 	/* Initialize command queue. */
@@ -55,39 +56,44 @@ int init_scheduler(char *workload) {
 	tmc_cpus_intersect_cpus(&cluster_sets[2], &online_set);
 	tmc_cpus_intersect_cpus(&cluster_sets[3], &online_set);
 
-    /* Initialize NUMA-stuff */
-    if (numa_available() < 0 || numa_max_node() == 0) {
-        fprintf(stderr, "Failed to initialize NUMA\n");
-        return -1;
-    }
+	/* Initialize NUMA-stuff */
+	if (numa_available() < 0 || numa_max_node() == 0) {
+		fprintf(stderr, "Failed to initialize NUMA\n");
+		return -1;
+	}
 
 	/* Initialize scheduling variables. */
 	all_started = 0;
 	all_terminated = 0;
 	run_clock = 0;
-	active_cluster_count = 0;
+	//	active_cluster_count = 0;
 	for (i = 0; i < CPU_CLUSTERS; i++) {
 		/* Check active CPU clusters. */
-		if (tmc_cpus_count(&cluster_sets[i]) > 0) {
-			active_cluster_count++;
-			active_clusters[i] = 1;
-		}
-		else {
-			active_clusters[i] = 0;
-		}
+		//		if (tmc_cpus_count(&cluster_sets[i]) > 0) {
+		//			active_cluster_count++;
+		//			active_clusters[i] = 1;
+		//		}
+		//		else {
+		//			active_clusters[i] = 0;
+		//		}
 		cluster_pids[i] = 0;
-		cluster_miss_rates[i] = 0.0f;
+		cluster_miss_rates[i] = 0;
 	}
 
 	/* Initialize CPU miss rate array */
-    for (i=0;i<CPU_COUNT;i++) {
-        cpu_miss_rates[i] = 0;
-    }
+	for (i = 0; i < CPU_COUNT; i++) {
+		cpu_miss_rates[i] = 0;
+		if (tmc_cpus_has_cpu(&online_set, i)) {
+			cpu_pids[i] = 0;
+		} else {
+			cpu_pids[i] = -1;
+		}
+	}
 
 	/* Start PMC reading threads one each CPU. */
 	for (i = 0; i < CPU_COUNT; i++) {
-		if (tmc_cpus_has_cpu(&online_set, i) == 1 &&
-			pthread_create(&pmc_threads[i], NULL, read_pmc, (void*)i) != 0) {
+		if (tmc_cpus_has_cpu(&online_set, i) == 1 && pthread_create(
+				&pmc_threads[i], NULL, read_pmc, (void*) i) != 0) {
 			fprintf(stderr, "Failed to create thread on CPU %i\n", i);
 			return -1;
 		} else {
@@ -101,46 +107,48 @@ int init_scheduler(char *workload) {
 void run_scheduler(void)
 {
 	int cluster, migration_cluster;
-    int total_miss_rate;
-    int average_miss_rate;
-    int migration_limit;
+	int total_miss_rate;
+	int average_miss_rate;
+	int migration_limit;
 	pid_t migration_pid;
 
 	/* Calculate miss rates for each CPU cluster and a total over all CPU
 	 * clusters. */
 	total_miss_rate = 0;
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-        cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster); 
-        total_miss_rate += cluster_miss_rates[cluster];
+		cluster_miss_rates[cluster] = get_cluster_miss_rate(cluster);
+		total_miss_rate += cluster_miss_rates[cluster];
 	}
 
 	/* Calculate an average cluster miss rate and an upper limit for
 	 * process migration. */
-	average_miss_rate = total_miss_rate / active_cluster_count;
-    printf("avg miss rate is %i\n", average_miss_rate);
+	average_miss_rate = total_miss_rate / CPU_CLUSTERS;
+	printf("avg miss rate is %i\n", average_miss_rate);
 	migration_limit = average_miss_rate * MIGRATION_FACTOR;
-    printf("migration limit is %i\n", migration_limit);
+	printf("migration limit is %i\n", migration_limit);
 
 	/* Check all clusters for process migration. */
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-        if (cluster_miss_rates[cluster] > migration_limit && cluster_pids[cluster] > 1) {
+		if (cluster_miss_rates[cluster] > migration_limit
+				&& cluster_pids[cluster] > 1) {
 			migration_cluster = get_optimal_cluster();
-            printf("optimal cluster seems to be %i\n", migration_cluster);
-            if (migration_cluster == cluster) {
-                printf("new and old cluster was the same :(\n");
-                return;
-            }
+			printf("optimal cluster seems to be %i\n", migration_cluster);
+			if (migration_cluster == cluster) {
+				printf("new and old cluster was the same :(\n");
+				return;
+			}
 			migration_pid = pid_set_get_minimum_pid(pid_set, cluster);
-            printf("pid to migrate is %i", migration_pid);
-			// Migrate process by setting its CPU cluster affinity. 
-			if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster], migration_pid)) {
+			printf("pid to migrate is %i", migration_pid);
+			// Migrate process by setting its CPU cluster affinity.
+			if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster],
+					migration_pid)) {
 				tmc_task_die("Failure in tmc_cpus_set_task_affinity()");
 			}
 			// Migrate memory pages.
-            printf("MIGRATE MEMORY FROM %i TO %i\n", cluster, migration_cluster);
-            if (migrate_memory(migration_pid, cluster, migration_cluster) < 0) {
-                printf("error in migrate_memory\n");
-            }
+			printf("MIGRATE MEMORY FROM %i TO %i\n", cluster, migration_cluster);
+			if (migrate_memory(migration_pid, cluster, migration_cluster) < 0) {
+				printf("error in migrate_memory\n");
+			}
 			pid_set_set_cluster(pid_set, migration_pid, migration_cluster);
 			cluster_pids[cluster]--;
 			cluster_pids[migration_cluster]++;
@@ -151,20 +159,24 @@ void run_scheduler(void)
 /* Start the next set of commands in queue. */
 int run_commands(void)
 {
-	int fd, cluster, timeout;
+	int fd, cluster, cpu, timeout;
 	pid_t pid;
 	cmd_t *cmd;
 	/* Start all command queued for start at the current time. */
-	while ((cmd = cmd_queue_front(cmd_queue)) != NULL
-			&& cmd->start <= run_clock) {
+	while ((cmd = cmd_queue_front(cmd_queue)) != NULL && cmd->start
+			<= run_clock) {
 		cluster = get_optimal_cluster();
+		cpu = get_optimal_cpu(cluster);
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stderr, "Failed to fork process\n");
 			return -1;
 		} else if (pid == 0) {
-			if (tmc_cpus_set_my_affinity(&cluster_sets[cluster]) < 0) {
-				tmc_task_die("Failure in tmc_set_my_affinity()");
+//			if (tmc_cpus_set_my_affinity(&cluster_sets[cluster]) < 0) {
+//				tmc_task_die("Failure in tmc_set_my_affinity()");
+//			}
+			if (tmc_cpus_set_my_cpu(cpu) < 0) {
+				tmc_task_die("Failure in tmc_set_my_cpu()");
 			}
 			chdir(cmd->dir);
 			/* Check redirection of stdin/stdout. */
@@ -188,8 +200,9 @@ int run_commands(void)
 			}
 		} else {
 			// Add pid to cluster table
-			pid_set_insert(pid_set, pid, cluster, cmd->class);
+			pid_set_insert(pid_set, pid, cpu, cluster, cmd->class);
 			cluster_pids[cluster]++;
+			cpu_pids[cpu]++;
 		}
 		/* Remove command from queue. */
 		cmd_queue_dequeue(cmd_queue);
@@ -199,7 +212,7 @@ int run_commands(void)
 	 * 0 if all commands have been started. */
 	if (cmd_queue_get_size(cmd_queue) > 0) {
 		timeout = cmd_queue_front(cmd_queue)->start - run_clock;
-        run_clock = cmd_queue_front(cmd_queue)->start;
+		run_clock = cmd_queue_front(cmd_queue)->start;
 		return timeout;
 	} else {
 		all_started = 1;
@@ -210,13 +223,15 @@ int run_commands(void)
 /* Wait for terminated child processes. */
 void await_processes(void)
 {
-	int cluster;
+	int cluster, cpu;
 	pid_t pid;
 	/* Await all terminated child processes. */
 	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
 		cluster = pid_set_get_cluster(pid_set, pid);
+		cpu = pid_set_get_cpu(pid_set, pid);
 		pid_set_remove(pid_set, pid);
 		cluster_pids[cluster]--;
+		cpu_pids[cpu]--;
 	}
 	/* Set flag if there are no more processes to wait for. */
 	if (pid == -1 && all_started == 1) {
@@ -229,8 +244,8 @@ void *read_pmc(void *arg)
 {
 	int cpu;
 	//int wr_miss, wr_cnt, drd_miss, drd_cnt;
-    int wr_miss, drd_miss, bundles, data_cache_stalls;
-    int miss_rate;
+	int wr_miss, drd_miss, bundles, data_cache_stalls;
+	int miss_rate;
 	struct timespec interval;
 
 	cpu = (int) arg;
@@ -244,16 +259,17 @@ void *read_pmc(void *arg)
 	/* Setup PMC registers. */
 	clear_counters();
 	//setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
-    setup_counters(LOCAL_WR_MISS, LOCAL_DRD_MISS, BUNDLES_RETIRED, DATA_CACHE_STALL);
+	setup_counters(LOCAL_WR_MISS, LOCAL_DRD_MISS, BUNDLES_RETIRED,
+			DATA_CACHE_STALL);
 	/* Periodically read registers, calculate miss rate and store value. */
 	while (all_terminated == 0) {
 		//read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-        read_counters(&wr_miss, &drd_miss, &bundles, &data_cache_stalls);
+		read_counters(&wr_miss, &drd_miss, &bundles, &data_cache_stalls);
 		clear_counters();
-        //miss_rate = (wr_miss + drd_miss) / (wr_cnt + drd_cnt);
-        miss_rate = ((wr_miss + drd_miss)*1000) / (bundles);
-        cpu_miss_rates[cpu] = miss_rate;
-   		nanosleep(&interval, NULL);
+		//miss_rate = (wr_miss + drd_miss) / (wr_cnt + drd_cnt);
+		miss_rate = ((wr_miss + drd_miss) * 1000) / (bundles);
+		cpu_miss_rates[cpu] = miss_rate;
+		nanosleep(&interval, NULL);
 	}
 	return NULL;
 }
@@ -276,10 +292,10 @@ int set_timer(timer_t *timer, int timeout)
 static int get_optimal_cluster(void)
 {
 	int optimal_cluster;
-    int miss_rate, best_miss_rate;
+	int miss_rate, best_miss_rate;
 	/* Find an active cluster with no running processes or select the cluster
 	 * with least contention (lowest miss rate). */
-    best_miss_rate = A_VERY_LARGE_NUMBER;
+	best_miss_rate = A_VERY_LARGE_NUMBER;
 	for (int cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
 		if (cluster_pids[cluster] == 0) {
 			return cluster;
@@ -287,60 +303,92 @@ static int get_optimal_cluster(void)
 			miss_rate = cluster_miss_rates[cluster];
 			if (miss_rate < best_miss_rate) {
 				optimal_cluster = cluster;
-                best_miss_rate = miss_rate;
+				best_miss_rate = miss_rate;
 			}
 		}
 	}
 	return optimal_cluster;
 }
 
+/* Returns the optimal cpu from the specified cluster. */
+static int get_optimal_cpu(int cluster)
+{
+	int cpu, start;
+
+	/* Set start to first cpu in cluster. */
+	if (cluster == 0)
+		start = 0;
+	else if (cluster == 1)
+		start = 4;
+	else if (cluster == 2)
+		start = 32;
+	else if (cluster == 3)
+		start = 36;
+	/* Loop over cpus in cluster, return when an empty cpu is found. */
+	for (cpu = start; cpu < start + 28; cpu += 4) {
+		for (cpu = start; cpu < start + 4; cpu++) {
+			if (cpu_pids[cpu] == 0) {
+				return cpu;
+			}
+		}
+	}
+
+	return start;
+}
+
 /* Returns the accumulated miss rate for all CPUs in the specified CPU
  * cluster. */
-static int get_cluster_miss_rate(int cluster) {
+static int get_cluster_miss_rate(int cluster)
+{
 
-    int miss_rates = 0;
-    int start;
-    if (cluster == 0) start = 0;
-    else if (cluster == 1) start = 4;
-    else if (cluster == 2) start = 32;
-    else if (cluster == 3) start = 36;
+	int miss_rates = 0;
+	int start;
+	if (cluster == 0)
+		start = 0;
+	else if (cluster == 1)
+		start = 4;
+	else if (cluster == 2)
+		start = 32;
+	else if (cluster == 3)
+		start = 36;
 
-    for (int i=0;i<4;i++) {
-        miss_rates += cpu_miss_rates[start++];
-        miss_rates += cpu_miss_rates[start++];
-        miss_rates += cpu_miss_rates[start++];
-        miss_rates += cpu_miss_rates[start++];
-        start += 4;
-    } 
-    return miss_rates;
+	for (int i = 0; i < 4; i++) {
+		miss_rates += cpu_miss_rates[start++];
+		miss_rates += cpu_miss_rates[start++];
+		miss_rates += cpu_miss_rates[start++];
+		miss_rates += cpu_miss_rates[start++];
+		start += 4;
+	}
+	return miss_rates;
 }
 
 /*
  * Migrates the memory of a process to a new cluster.
  */
-static int migrate_memory(pid_t pid, int old_cluster, int new_cluster) {
+static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
+{
 
-    nodemask_t fromnodes;
-    nodemask_t tonodes;
+	nodemask_t fromnodes;
+	nodemask_t tonodes;
 
-    // Tileras numbering of memory controllers goes clockwise,
-    // ours does not.
-    if (old_cluster == 2) {
-        old_cluster = 3;
-    } else if (old_cluster == 3) {
-        old_cluster = 2;
-    }
-    if (new_cluster == 2) {
-        new_cluster = 3;
-    } else if (new_cluster == 3) {
-        new_cluster = 2;
-    }
+	// Tileras numbering of memory controllers goes clockwise,
+	// ours does not.
+	if (old_cluster == 2) {
+		old_cluster = 3;
+	} else if (old_cluster == 3) {
+		old_cluster = 2;
+	}
+	if (new_cluster == 2) {
+		new_cluster = 3;
+	} else if (new_cluster == 3) {
+		new_cluster = 2;
+	}
 
-    nodemask_zero(&fromnodes);
-    nodemask_zero(&tonodes);
+	nodemask_zero(&fromnodes);
+	nodemask_zero(&tonodes);
 
-    nodemask_set(&fromnodes, old_cluster);
-    nodemask_set(&tonodes, new_cluster);
+	nodemask_set(&fromnodes, old_cluster);
+	nodemask_set(&tonodes, new_cluster);
 
-    return numa_migrate_pages(pid, &fromnodes, &tonodes); 
+	return numa_migrate_pages(pid, &fromnodes, &tonodes);
 }

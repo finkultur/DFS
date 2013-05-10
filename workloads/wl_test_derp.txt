@@ -1,0 +1,7 @@
+0 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+5 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+5 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+5 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+10 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+15 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+16 1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in

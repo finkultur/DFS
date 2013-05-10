@@ -16,8 +16,8 @@
 /* TILEPRO64 CPU specifications. */
 #define CPU_COUNT 64
 #define CPU_CLUSTERS 4
-#define CPU_COLUMNS 8
-#define CPU_ROWS 8
+//#define CPU_COLUMNS 8
+//#define CPU_ROWS 8
 
 #define A_VERY_LARGE_NUMBER 2100000000
 
@@ -30,13 +30,16 @@ int all_terminated;
 int run_clock;
 
 /* Number of active CPU clusters. */
-int active_cluster_count;
+//int active_cluster_count;
 
 /* Indicates which CPU clusters are active (0 = inactive, 1 = active). */
-int active_clusters[CPU_CLUSTERS];
+//int active_clusters[CPU_CLUSTERS];
 
 /* Number of processes running on each CPU cluster. */
 int cluster_pids[CPU_CLUSTERS];
+
+/* Number of processes running on each CPU. */
+int cpu_pids[CPU_COUNT];
 
 /* Last calculated miss rate for each CPU cluster. */
 int cluster_miss_rates[CPU_CLUSTERS];
