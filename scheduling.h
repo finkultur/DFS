@@ -7,11 +7,11 @@
 #include "pid_set.h"
 
 /* Interval lengths for reading of PMC registers and scheduling. */
-#define PMC_READ_INTERVAL 10
-#define SCHEDULING_INTERVAL 10
+#define PMC_READ_INTERVAL 2
+#define SCHEDULING_INTERVAL 4
 
 /* Factor used to set a limit for when process migration should be performed. */
-#define MIGRATION_FACTOR 1.5
+#define MIGRATION_FACTOR 2
 
 /* TILEPRO64 CPU specifications. */
 #define CPU_COUNT 64

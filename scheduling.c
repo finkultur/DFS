@@ -108,7 +108,7 @@ int init_scheduler(char *workload)
 /* Perform scheduling tasks. */
 void run_scheduler(void)
 {
-	int cluster, migration_cluster;
+	int cluster, migration_cluster, migration_cpu, old_cpu;
 	int total_miss_rate;
 	int average_miss_rate;
 	int migration_limit;
@@ -134,24 +134,32 @@ void run_scheduler(void)
 		if (cluster_miss_rates[cluster] > migration_limit
 				&& cluster_pids[cluster] > 1) {
 			migration_cluster = get_optimal_cluster();
-			printf("optimal cluster seems to be %i\n", migration_cluster);
+            migration_cpu = get_optimal_cpu(migration_cluster);
+			//printf("optimal cluster seems to be %i\n", migration_cluster);
 			if (migration_cluster == cluster) {
 				printf("new and old cluster was the same :(\n");
 				return;
 			}
 			migration_pid = pid_set_get_minimum_pid(pid_set, cluster);
-			printf("pid to migrate is %i", migration_pid);
+            old_cpu = pid_set_get_cpu(pid_set, migration_pid);
+			//printf("pid to migrate is %i", migration_pid);
 			// Migrate process by setting its CPU cluster affinity.
-			if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster],
-					migration_pid)) {
-				tmc_task_die("Failure in tmc_cpus_set_task_affinity()");
-			}
+			//if (tmc_cpus_set_task_affinity(&cluster_sets[migration_cluster],
+			//		migration_pid) < 0) {
+			//	tmc_task_die("Failure in tmc_cpus_set_task_affinity()");
+			//}
+			if (tmc_cpus_set_my_cpu(migration_cpu) < 0) {
+                tmc_task_die("Failure in tmc_cpus_set_my_cpu()");
+            } 
 			// Migrate memory pages.
-			printf("MIGRATE MEMORY FROM %i TO %i\n", cluster, migration_cluster);
-			if (migrate_memory(migration_pid, cluster, migration_cluster) < 0) {
-				printf("error in migrate_memory\n");
-			}
+			//printf("MIGRATE MEMORY FROM %i TO %i\n", cluster, migration_cluster);
+			//if (migrate_memory(migration_pid, cluster, migration_cluster) < 0) {
+			//	printf("error in migrate_memory\n");
+			//}
 			pid_set_set_cluster(pid_set, migration_pid, migration_cluster);
+            pid_set_set_cpu(pid_set, migration_pid, migration_cpu);
+            cpu_pids[old_cpu]--;
+            cpu_pids[migration_cpu]++;
 			cluster_pids[cluster]--;
 			cluster_pids[migration_cluster]++;
 		}
