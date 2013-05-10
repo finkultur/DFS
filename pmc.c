@@ -12,7 +12,8 @@ inline void setup_counters(int event1, int event2, int event3, int event4)
 }
 
 /* Reads PMCs and stores their values. */
-inline void read_counters(int* event1, int* event2, int* event3, int* event4)
+inline void read_counters(unsigned int* event1, unsigned int* event2,
+		unsigned int* event3, unsigned int* event4)
 {
 	*event1 = __insn_mfspr(SPR_PERF_COUNT_0);
 	*event2 = __insn_mfspr(SPR_PERF_COUNT_1);

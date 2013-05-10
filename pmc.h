@@ -24,7 +24,8 @@
 void setup_counters(int event1, int event2, int event3, int event4);
 
 /* Reads PMCs and stores their values in the specified locations. */
-void read_counters(int* event1, int* event2, int* event3, int* event4);
+void read_counters(unsigned int* event1, unsigned int* event2,
+		unsigned int* event3, unsigned int* event4);
 
 /* Clears the PMCs. */
 void clear_counters(void);

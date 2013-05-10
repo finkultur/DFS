@@ -7,7 +7,7 @@
 #include "pid_set.h"
 
 /* Interval lengths for reading of PMC registers and scheduling. */
-#define PMC_READ_INTERVAL 1
+#define PMC_READ_INTERVAL 10
 #define SCHEDULING_INTERVAL 10
 
 /* Factor used to set a limit for when process migration should be performed. */

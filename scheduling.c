@@ -9,6 +9,8 @@
 #include <time.h>
 #include <arch/cycle.h>
 
+#include <sys/types.h>
+
 #include <tmc/cpus.h>
 #include <tmc/task.h>
 
@@ -123,9 +125,9 @@ void run_scheduler(void)
 	/* Calculate an average cluster miss rate and an upper limit for
 	 * process migration. */
 	average_miss_rate = total_miss_rate / CPU_CLUSTERS;
-	printf("avg miss rate is %i\n", average_miss_rate);
+//	printf("avg miss rate is %i\n", average_miss_rate);
 	migration_limit = average_miss_rate * MIGRATION_FACTOR;
-	printf("migration limit is %i\n", migration_limit);
+//	printf("migration limit is %i\n", migration_limit);
 
 	/* Check all clusters for process migration. */
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
@@ -172,9 +174,9 @@ int run_commands(void)
 			fprintf(stderr, "Failed to fork process\n");
 			return -1;
 		} else if (pid == 0) {
-//			if (tmc_cpus_set_my_affinity(&cluster_sets[cluster]) < 0) {
-//				tmc_task_die("Failure in tmc_set_my_affinity()");
-//			}
+			//			if (tmc_cpus_set_my_affinity(&cluster_sets[cluster]) < 0) {
+			//				tmc_task_die("Failure in tmc_set_my_affinity()");
+			//			}
 			if (tmc_cpus_set_my_cpu(cpu) < 0) {
 				tmc_task_die("Failure in tmc_set_my_cpu()");
 			}
@@ -206,6 +208,8 @@ int run_commands(void)
 		}
 		/* Remove command from queue. */
 		cmd_queue_dequeue(cmd_queue);
+		printf("STARTED COMMAND ON CPU: %i\n", cpu);
+		printf("CLUSTER COUNT WAS: %i\n", cluster_pids[cluster]);
 	}
 
 	/* Return the number of seconds until the next command should be run or
@@ -244,7 +248,7 @@ void *read_pmc(void *arg)
 {
 	int cpu;
 	//int wr_miss, wr_cnt, drd_miss, drd_cnt;
-	int wr_miss, drd_miss, bundles, data_cache_stalls;
+	unsigned int wr_miss, drd_miss, bundles, data_cache_stalls;
 	int miss_rate;
 	struct timespec interval;
 
@@ -261,14 +265,20 @@ void *read_pmc(void *arg)
 	//setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
 	setup_counters(LOCAL_WR_MISS, LOCAL_DRD_MISS, BUNDLES_RETIRED,
 			DATA_CACHE_STALL);
+
 	/* Periodically read registers, calculate miss rate and store value. */
 	while (all_terminated == 0) {
+//		printf("PMC READ ON CPU: %i THREAD: %u\n", tmc_cpus_get_my_current_cpu(), pthread_self());
 		//read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
 		read_counters(&wr_miss, &drd_miss, &bundles, &data_cache_stalls);
 		clear_counters();
 		//miss_rate = (wr_miss + drd_miss) / (wr_cnt + drd_cnt);
 		miss_rate = ((wr_miss + drd_miss) * 1000) / (bundles);
 		cpu_miss_rates[cpu] = miss_rate;
+//		printf("CPU %i got miss rate %i\n", cpu, miss_rate);
+//		if (miss_rate < 0) {
+//			printf("MISS RATE NEGATIVE! wr_miss: %i, drd_miss: %i, bundles: %i\n", wr_miss, drd_miss, bundles);
+//		}
 		nanosleep(&interval, NULL);
 	}
 	return NULL;
@@ -291,22 +301,45 @@ int set_timer(timer_t *timer, int timeout)
 /* Finds and returns the number of the cluster with least contention. */
 static int get_optimal_cluster(void)
 {
-	int optimal_cluster;
+	int cluster, optimal_cluster, count, best_count;
 	int miss_rate, best_miss_rate;
+	int limit;
+
+	limit = 0;
+	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
+		limit += cluster_miss_rates[cluster];
+	}
+	limit = limit * MIGRATION_FACTOR;
+
 	/* Find an active cluster with no running processes or select the cluster
 	 * with least contention (lowest miss rate). */
+	best_count = A_VERY_LARGE_NUMBER;
 	best_miss_rate = A_VERY_LARGE_NUMBER;
-	for (int cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-		if (cluster_pids[cluster] == 0) {
-			return cluster;
-		} else {
-			miss_rate = cluster_miss_rates[cluster];
-			if (miss_rate < best_miss_rate) {
-				optimal_cluster = cluster;
-				best_miss_rate = miss_rate;
+		for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
+			if (cluster_pids[cluster] == 0) {
+				return cluster;
+			} else {
+				miss_rate = cluster_miss_rates[cluster];
+				if (miss_rate < limit) {
+					count = cluster_pids[cluster];
+					if (count < best_count) {
+						optimal_cluster = cluster;
+						best_count = count;
+					}
+				} else if (miss_rate < best_miss_rate) {
+					optimal_cluster = cluster;
+					best_miss_rate = miss_rate;
+				}
 			}
 		}
-	}
+//	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
+//		if (cluster_pids[cluster] == 0) {
+//			return cluster;
+//		} else if (cluster_pids[cluster] < best_count) {
+//			optimal_cluster = cluster;
+//			best_count = cluster_pids[cluster];
+//		}
+//	}
 	return optimal_cluster;
 }
 
