@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
 	timer_t command_timer, scheduling_timer;
 	time_t start_time, end_time;
 
+    printf("I AM THE SCHEDULER. I AM ON PID %i\n", getpid());
+
 	/* Set start time. */
 	start_time = time(NULL);
 

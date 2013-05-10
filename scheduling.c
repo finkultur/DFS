@@ -260,6 +260,13 @@ void *read_pmc(void *arg)
 	int miss_rate;
 	struct timespec interval;
 
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGCHLD);
+    sigaddset(&mask, SIGALRM);
+    sigaddset(&mask, SIGPOLL);
+    pthread_sigmask(SIG_BLOCK, &mask, NULL);
+
 	cpu = (int) arg;
 	interval.tv_sec = PMC_READ_INTERVAL;
 	interval.tv_nsec = 0;
@@ -317,29 +324,39 @@ static int get_optimal_cluster(void)
 	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
 		limit += cluster_miss_rates[cluster];
 	}
-	limit = limit * MIGRATION_FACTOR;
-
+	limit = (limit/CPU_CLUSTERS) * MIGRATION_FACTOR;
+ 
 	/* Find an active cluster with no running processes or select the cluster
 	 * with least contention (lowest miss rate). */
 	best_count = A_VERY_LARGE_NUMBER;
 	best_miss_rate = A_VERY_LARGE_NUMBER;
-		for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
-			if (cluster_pids[cluster] == 0) {
-				return cluster;
-			} else {
-				miss_rate = cluster_miss_rates[cluster];
-				if (miss_rate < limit) {
-					count = cluster_pids[cluster];
-					if (count < best_count) {
-						optimal_cluster = cluster;
-						best_count = count;
-					}
-				} else if (miss_rate < best_miss_rate) {
+	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
+		if (cluster_pids[cluster] == 0) {
+			return cluster;
+		} else {
+/*			miss_rate = cluster_miss_rates[cluster];
+            if (miss_rate < best_miss_rate) {
+                best_miss_rate = miss_rate;
+                optimal_cluster = cluster;
+            }
+        }
+    }
+*/
+			if (miss_rate < limit) {
+				count = cluster_pids[cluster];
+				if (count < best_count) {
 					optimal_cluster = cluster;
-					best_miss_rate = miss_rate;
+					best_count = count;
 				}
-			}
-		}
+            } else {
+                miss_rate = cluster_miss_rates[cluster];
+                if (miss_rate < best_miss_rate) {
+                    best_miss_rate = miss_rate;
+                    optimal_cluster = cluster;
+                }
+		    }
+        }
+    }
 //	for (cluster = 0; cluster < CPU_CLUSTERS; cluster++) {
 //		if (cluster_pids[cluster] == 0) {
 //			return cluster;
