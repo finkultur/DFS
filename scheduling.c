@@ -8,14 +8,13 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <arch/cycle.h>
-
 #include <sys/types.h>
 
 #include <tmc/cpus.h>
 #include <tmc/task.h>
-
 #include <numa.h>
 #include <numaif.h> // Not sure if this is used.
+
 #include "pmc.h"
 #include "scheduling.h"
 
@@ -29,6 +28,11 @@ static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 int init_scheduler(char *workload)
 {
 	int i;
+
+    // Always run scheduler on tile 0
+    if (tmc_cpus_set_my_cpu(0) < 0) {
+        tmc_task_die("failure in set my cpu(0)");
+    }
 
 	/* Initialize command queue. */
 	cmd_queue = cmd_queue_create(workload);
@@ -91,6 +95,8 @@ int init_scheduler(char *workload)
 			cpu_pids[i] = -1;
 		}
 	}
+    // Scheduler always runs on tile 0
+    cpu_pids[0] = 1;
 
 	/* Start PMC reading threads one each CPU. */
 	for (i = 0; i < CPU_COUNT; i++) {
@@ -216,7 +222,7 @@ int run_commands(void)
 		}
 		/* Remove command from queue. */
 		cmd_queue_dequeue(cmd_queue);
-		printf("STARTED COMMAND ON CPU: %i\n", cpu);
+		printf("STARTED COMMAND ON CLUSTER: %i, CPU: %i\n", cluster, cpu);
 		printf("CLUSTER COUNT WAS: %i\n", cluster_pids[cluster]);
 	}
 
@@ -256,7 +262,8 @@ void *read_pmc(void *arg)
 {
 	int cpu;
 	//int wr_miss, wr_cnt, drd_miss, drd_cnt;
-	unsigned int wr_miss, drd_miss, bundles, data_cache_stalls;
+	//unsigned int wr_miss, drd_miss, bundles, data_cache_stalls;
+    unsigned int local_wr_miss, remote_wr_miss, local_drd_miss, remote_drd_miss;
 	int miss_rate;
 	struct timespec interval;
 
@@ -275,25 +282,26 @@ void *read_pmc(void *arg)
 		fprintf(stderr, "Failed to start thread on cpu %i\n", cpu);
 		tmc_task_die("failure in 'tmc_set_my_cpu'");
 	}
+
 	/* Setup PMC registers. */
 	clear_counters();
 	//setup_counters(LOCAL_WR_MISS, LOCAL_WR_CNT, LOCAL_DRD_MISS, LOCAL_DRD_CNT);
-	setup_counters(LOCAL_WR_MISS, LOCAL_DRD_MISS, BUNDLES_RETIRED,
-			DATA_CACHE_STALL);
+	//setup_counters(LOCAL_WR_MISS, LOCAL_DRD_MISS, BUNDLES_RETIRED, DATA_CACHE_STALL);
+    setup_counters(LOCAL_WR_MISS, REMOTE_WR_MISS, LOCAL_DRD_MISS, REMOTE_DRD_MISS);
 
 	/* Periodically read registers, calculate miss rate and store value. */
 	while (all_terminated == 0) {
-//		printf("PMC READ ON CPU: %i THREAD: %u\n", tmc_cpus_get_my_current_cpu(), pthread_self());
 		//read_counters(&wr_miss, &wr_cnt, &drd_miss, &drd_cnt);
-		read_counters(&wr_miss, &drd_miss, &bundles, &data_cache_stalls);
+		//read_counters(&wr_miss, &drd_miss, &bundles, &data_cache_stalls);
+        read_counters(&local_wr_miss, &remote_wr_miss, &local_drd_miss, &remote_drd_miss);
 		clear_counters();
-		//miss_rate = (wr_miss + drd_miss) / (wr_cnt + drd_cnt);
-		miss_rate = ((wr_miss + drd_miss) * 1000) / (bundles);
-		cpu_miss_rates[cpu] = miss_rate;
-//		printf("CPU %i got miss rate %i\n", cpu, miss_rate);
-//		if (miss_rate < 0) {
-//			printf("MISS RATE NEGATIVE! wr_miss: %i, drd_miss: %i, bundles: %i\n", wr_miss, drd_miss, bundles);
-//		}
+
+    	//miss_rate = ((wr_miss + drd_miss) * 1000) / (bundles);
+    	miss_rate = local_wr_miss + remote_wr_miss + local_drd_miss + remote_drd_miss;
+    	cpu_miss_rates[cpu] = miss_rate;
+
+        printf("CPU %i got misses: %i, %i, %i, %i\n", cpu, local_wr_miss, remote_wr_miss, local_drd_miss, remote_drd_miss);
+		//printf("CPU %i got miss rate %i. wr_miss: %i drd_miss: %i bundles: %i\n", cpu, miss_rate, wr_miss, drd_miss, bundles);
 		nanosleep(&interval, NULL);
 	}
 	return NULL;
@@ -334,14 +342,6 @@ static int get_optimal_cluster(void)
 		if (cluster_pids[cluster] == 0) {
 			return cluster;
 		} else {
-/*			miss_rate = cluster_miss_rates[cluster];
-            if (miss_rate < best_miss_rate) {
-                best_miss_rate = miss_rate;
-                optimal_cluster = cluster;
-            }
-        }
-    }
-*/
 			if (miss_rate < limit) {
 				count = cluster_pids[cluster];
 				if (count < best_count) {
@@ -385,20 +385,30 @@ static int get_optimal_cpu(int cluster)
 	/* Loop over cpus in cluster, return when an empty cpu is found. */
 	for (cpu = start; cpu < start + 28; cpu += 4) {
 		for (cpu = start; cpu < start + 4; cpu++) {
-			if (cpu_pids[cpu] == 0) {
+			if (cpu_pids[cpu] == 0 && tmc_cpus_has_cpu(&online_set, cpu)) {
 				return cpu;
 			}
 		}
 	}
 
-	return start;
+    // Else, return the one with least contention
+    int min_val = A_VERY_LARGE_NUMBER;
+    int best_cpu;
+    for (cpu=start; cpu<start+28; cpu+=4) {
+        for (cpu = start; cpu < start + 4; cpu++) {
+            if (cpu_miss_rates[cpu] < min_val && tmc_cpus_has_cpu(&online_set, cpu)) {
+                min_val = cpu_miss_rates[cpu];
+                best_cpu = cpu;
+            } 
+        }
+    }
+	return best_cpu;
 }
 
 /* Returns the accumulated miss rate for all CPUs in the specified CPU
  * cluster. */
 static int get_cluster_miss_rate(int cluster)
 {
-
 	int miss_rates = 0;
 	int start;
 	if (cluster == 0)
@@ -410,6 +420,8 @@ static int get_cluster_miss_rate(int cluster)
 	else if (cluster == 3)
 		start = 36;
 
+    
+    // Count miss rates
 	for (int i = 0; i < 4; i++) {
 		miss_rates += cpu_miss_rates[start++];
 		miss_rates += cpu_miss_rates[start++];
@@ -417,6 +429,17 @@ static int get_cluster_miss_rate(int cluster)
 		miss_rates += cpu_miss_rates[start++];
 		start += 4;
 	}
+
+    // Only count miss rates in tiles that have processes running
+    /*for (int i=0;i<4;i++) {
+        for (int j=0;j<4;j++) {
+            if (cpu_pids[start] != 0) {
+                miss_rates += cpu_miss_rates[start];
+            }
+            start++;
+        }
+        start += 4;
+    }*/
 	return miss_rates;
 }
 
@@ -425,7 +448,6 @@ static int get_cluster_miss_rate(int cluster)
  */
 static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
 {
-
 	nodemask_t fromnodes;
 	nodemask_t tonodes;
 

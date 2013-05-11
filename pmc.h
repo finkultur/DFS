@@ -20,6 +20,11 @@
 #define LOCAL_DRD_MISS 0x34
 #define LOCAL_DRD_CNT 0x28
 
+#define REMOTE_WR_MISS 0x38
+#define REMOTE_WR_CNT 0x2c
+#define REMOTE_DRD_MISS 0x37
+#define REMOTE_DRD_CNT 0x2b
+
 /* Setup PMCs to count the specified events. */
 void setup_counters(int event1, int event2, int event3, int event4);
 

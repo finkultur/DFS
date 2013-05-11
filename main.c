@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+    printf("Joining polling threads\n");
 	/* Join PMC polling threads. */
 	for (i = 0; i < CPU_COUNT; i++) {
 		if (pmc_threads[i] != 0) {
