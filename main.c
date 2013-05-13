@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "scheduling.h"
 
@@ -13,13 +14,14 @@
 int main(int argc, char *argv[])
 {
 	int timeout, signal;
+	unsigned long msec;
 	sigset_t signal_mask;
 	struct sigevent command_event, scheduling_event;
 	timer_t command_timer, scheduling_timer;
-	time_t start_time, end_time;
+	struct timeval start_time, end_time;
 
 	/* Set start time. */
-	start_time = time(NULL);
+	gettimeofday(&start_time, NULL);
 
 	/* Check for valid command line arguments. */
 	if (argc != 2) {
@@ -64,7 +66,7 @@ int main(int argc, char *argv[])
 
 	/* Set command startup timer. */
 	if ((timeout = run_commands()) > 0) {
-		set_timer(&command_timer, timeout);
+		set_timer(&command_timer, timeout * 1000);
 	} else {
 		timer_delete(command_timer);
 	}
@@ -80,7 +82,7 @@ int main(int argc, char *argv[])
 		case SIGALRM:
 			timeout = run_commands();
 			if (timeout > 0) {
-				set_timer(&command_timer, timeout);
+				set_timer(&command_timer, timeout * 1000);
             }
 			break;
 		case SIGCHLD:
@@ -96,9 +98,11 @@ int main(int argc, char *argv[])
 	}
 
 	/* Set end time. */
-	end_time = time(NULL);
+	gettimeofday(&end_time, NULL);
+	msec = (end_time.tv_sec - start_time.tv_sec) * 1000;
+	msec += (end_time.tv_usec - start_time.tv_usec) / 1000;
 
-	printf("Execution time: %f\n", difftime(end_time, start_time));
+	printf("Execution time: %lu,%lu\n", msec / 1000, msec % 1000);
 
 	return 0;
 }

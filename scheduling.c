@@ -3,8 +3,10 @@
  * TODO: add description.
  * Scheduling routines. */
 
-#include <errno.h>
+#include <ctype.h>
 #include <fcntl.h>
+#include <numa.h>
+#include <numaif.h>
 #include <stdio.h>
 #include <sys/wait.h>
 #include <string.h>
@@ -18,15 +20,14 @@
 static int read_memprof_data(void);
 static int get_optimal_cluster(void);
 static int get_optimal_cpu(int cluster);
-
-//static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
+static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 
 // DEBUG
 void print_memprof_data(void)
 {
 	int cluster;
 	for (cluster = 0; cluster < CPU_CLUSTER_COUNT; cluster++) {
-		printf("CLUSTER: %i PIDS: %i MEMOPS: %lu\n", cluster,
+		printf("CLUSTER: %i PIDS: %i MEMOPS: %llu\n", cluster,
 				cluster_process_count[cluster], mc_rates[cluster]);
 	}
 }
@@ -60,6 +61,13 @@ int init_scheduler(char *workload)
 	if (tmc_cpus_set_my_affinity(&online_set)) {
 		tmc_task_die("failure in set my affinity");
 	}
+
+	/* Check for NUMA. */
+	if (numa_available() == -1) {
+		fprintf(stderr, "NUMA policy unavailable\n");
+	}
+
+	printf("NUMA MAX NODE: %i\n", numa_max_node());
 
 	/* Initialize command queue. */
 	cmd_queue = cmd_queue_create(workload);
@@ -108,13 +116,13 @@ int init_scheduler(char *workload)
 		value_token = strtok(NULL, " ");
 		if (data_token != NULL && value_token != NULL) {
 			if (strcmp(data_token, "shim0_op_count:") == 0) {
-				mc_ops[0] = strtoul(value_token, NULL, 0);
+				mc_ops[0] = strtoull(value_token, NULL, 0);
 			} else if (strcmp(data_token, "shim1_op_count:") == 0) {
-				mc_ops[1] = strtoul(value_token, NULL, 0);
+				mc_ops[1] = strtoull(value_token, NULL, 0);
 			} else if (strcmp(data_token, "shim2_op_count:") == 0) {
-				mc_ops[3] = strtoul(value_token, NULL, 0);
+				mc_ops[3] = strtoull(value_token, NULL, 0);
 			} else if (strcmp(data_token, "shim3_op_count:") == 0) {
-				mc_ops[2] = strtoul(value_token, NULL, 0);
+				mc_ops[2] = strtoull(value_token, NULL, 0);
 			}
 		}
 	}
@@ -140,8 +148,8 @@ void run_scheduler(void)
 	mc_rate_limit /= CPU_CLUSTER_COUNT;
 	mc_rate_limit *= MIGRATION_FACTOR;
 
-	printf("MIGRATION LIMIT: %lu\n", mc_rate_limit);
-	print_memprof_data();
+	//	printf("MIGRATION LIMIT: %lu\n", mc_rate_limit);
+//	print_memprof_data();
 
 	/* Check if process migration is needed. */
 	migrate = 0;
@@ -159,36 +167,42 @@ void run_scheduler(void)
 	}
 
 	if (migrate == 0 || best_cluster == worst_cluster
-			|| cluster_process_count[worst_cluster] < 1) {
+			|| cluster_process_count[worst_cluster] <= 1) {
 		return;
 	} else {
-		printf("MIGRATING CLUSTER %i TO %i\n", worst_cluster, best_cluster);
+		//		printf("MIGRATING....\n");
+		//		printf("Worst cluster:  %i\n", worst_cluster);
+		//		printf("Best cluster: %i\n", best_cluster);
 
 		pid = pid_set_get_minimum_pid(pid_set, worst_cluster);
 
-		printf("GOT PID %i\n", pid);
+		//		printf("Found pid: %i cluster: %i cpu: %i\n", pid, pid_set_get_cluster(
+		//				pid_set, pid), pid_set_get_cpu(pid_set, pid));
 
-		cpu = get_optimal_cpu(best_cluster);
+//		cpu = get_optimal_cpu(best_cluster);
 
-		printf("GOT CPU %i\n", cpu);
+		//		printf("New cpu %i\n", cpu);
 
-		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
-			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
-		}
+
+		printf("Migrate memory for pid %i. From cluster %i to %i\n", pid,
+				worst_cluster, best_cluster);
+		migrate_memory(pid, worst_cluster, best_cluster);
 
 		cluster_process_count[best_cluster]++;
 		cluster_process_count[worst_cluster]--;
 
-		cpu_process_count[cpu]++;
-		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
+//		cpu_process_count[cpu]++;
+//		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
 
 		pid_set_set_cluster(pid_set, pid, best_cluster);
-		pid_set_set_cpu(pid_set, pid, cpu);
+//		pid_set_set_cpu(pid_set, pid, cpu);
 
-		printf("MIGRATED PID %i FROM CLUSTER %i TO %i\n", pid, worst_cluster,
-				best_cluster);
-		printf("NEW PID CLUSTER: %i\n", pid_set_get_cluster(pid_set, pid));
-		printf("NEW PID CPU: %i\n", pid_set_get_cpu(pid_set, pid));
+//		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
+//			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
+//		}
+
+		//		printf("pid_set cluster: %i\n", pid_set_get_cluster(pid_set, pid));
+		//		printf("pid_set cpu: %i\n", pid_set_get_cpu(pid_set, pid));
 
 	}
 }
@@ -218,6 +232,9 @@ int run_commands(void)
 			cpu_process_count[cpu]++;
 			/* Remove command from queue. */
 			cmd_queue_dequeue(cmd_queue);
+
+			printf("PROCESS COUNT: %i\n", pid_set_get_size(pid_set));
+
 		} else {
 			if (tmc_cpus_set_my_cpu(cpu) < 0) {
 				tmc_task_die("Failure in tmc_set_my_cpu()");
@@ -227,6 +244,7 @@ int run_commands(void)
 			if (cmd->input_file != NULL) {
 				fd = open(cmd->input_file, O_RDONLY);
 				if (fd == -1) {
+					fprintf(stderr, "Failed to redirect stdin\n");
 					exit(EXIT_FAILURE);
 				}
 				dup2(fd, 0);
@@ -235,12 +253,14 @@ int run_commands(void)
 			//			if (cmd->output_file != NULL) {
 			//				fd = open(cmd->output_file, O_CREAT);
 			//				if (fd == -1) {
+			//					fprintf(stderr, "Failed to redirect stdout\n");
 			//					exit(EXIT_FAILURE);
 			//				}
 			//				dup2(fd, 1);
 			//			}
 
-			// SURPRESS ANOYING OUTPUT
+			//			 SURPRESS ANOYING OUTPUT
+
 			fd = open("/dev/null", O_CREAT);
 			if (fd == -1) {
 				exit(EXIT_FAILURE);
@@ -248,8 +268,17 @@ int run_commands(void)
 			dup2(fd, 1);
 
 			/* Execute program. */
-			if (execv(cmd->cmd, cmd->argv) != 0) {
-				exit(EXIT_FAILURE);
+			if (strcmp(cmd->cmd, "sh") == 0) {
+				if (execvp(cmd->cmd, cmd->argv) != 0) {
+					fprintf(stderr, "Failed to execute command\n");
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				if (execv(cmd->cmd, cmd->argv) != 0) {
+					fprintf(stderr, "Failed to execute command\n");
+					exit(EXIT_FAILURE);
+				}
+
 			}
 		}
 	}
@@ -282,11 +311,11 @@ void await_processes(void)
 }
 
 /* Sets the timeout of the specified timer. */
-int set_timer(timer_t *timer, int timeout)
+int set_timer(timer_t *timer, size_t timeout)
 {
 	struct itimerspec value;
-	value.it_interval.tv_sec = timeout;
-	value.it_interval.tv_nsec = 0;
+	value.it_interval.tv_sec = timeout / 1000;
+	value.it_interval.tv_nsec = (timeout % 1000) * 1000000;
 	value.it_value = value.it_interval;
 	if (timer_settime(*timer, 0, &value, NULL) != 0) {
 		fprintf(stderr, "Failed to set timer\n");
@@ -298,7 +327,7 @@ int set_timer(timer_t *timer, int timeout)
 /**/
 static int read_memprof_data(void)
 {
-	unsigned long int value;
+	unsigned long long int value;
 	char *data_token, *value_token;
 	char line_buffer[MEMPROF_BUFFER_SIZE];
 
@@ -308,19 +337,19 @@ static int read_memprof_data(void)
 		value_token = strtok(NULL, " ");
 		if (data_token != NULL && value_token != NULL) {
 			if (strcmp(data_token, "shim0_op_count:") == 0) {
-				value = strtoul(value_token, NULL, 0);
+				value = strtoull(value_token, NULL, 0);
 				mc_rates[0] = value - mc_ops[0];
 				mc_ops[0] = value;
 			} else if (strcmp(data_token, "shim1_op_count:") == 0) {
-				value = strtoul(value_token, NULL, 0);
+				value = strtoull(value_token, NULL, 0);
 				mc_rates[1] = value - mc_ops[1];
 				mc_ops[1] = value;
 			} else if (strcmp(data_token, "shim2_op_count:") == 0) {
-				value = strtoul(value_token, NULL, 0);
+				value = strtoull(value_token, NULL, 0);
 				mc_rates[3] = value - mc_ops[3];
 				mc_ops[3] = value;
 			} else if (strcmp(data_token, "shim3_op_count:") == 0) {
-				value = strtoul(value_token, NULL, 0);
+				value = strtoull(value_token, NULL, 0);
 				mc_rates[2] = value - mc_ops[2];
 				mc_ops[2] = value;
 			}
@@ -368,29 +397,64 @@ static int get_optimal_cpu(int cluster)
 }
 
 /* Migrates the memory of a process to a new cluster. */
-//static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
-//{
-//	nodemask_t fromnodes;
-//	nodemask_t tonodes;
-//
-//	// Tileras numbering of memory controllers goes clockwise,
-//	// ours does not.
-//	if (old_cluster == 2) {
-//		old_cluster = 3;
-//	} else if (old_cluster == 3) {
-//		old_cluster = 2;
-//	}
-//	if (new_cluster == 2) {
-//		new_cluster = 3;
-//	} else if (new_cluster == 3) {
-//		new_cluster = 2;
-//	}
-//
-//	nodemask_zero(&fromnodes);
-//	nodemask_zero(&tonodes);
-//
-//	nodemask_set(&fromnodes, old_cluster);
-//	nodemask_set(&tonodes, new_cluster);
-//
-//	return numa_migrate_pages(pid, &fromnodes, &tonodes);
-//}
+static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
+{
+	int result;
+	long node0_size, node0_free;
+	long node1_size, node1_free;
+	long node2_size, node2_free;
+	long node3_size, node3_free;
+
+	nodemask_t *from = calloc(1, sizeof(nodemask_t));
+
+	nodemask_t *to = calloc(1, sizeof(nodemask_t));
+
+	// Tileras numbering of memory controllers goes clockwise,
+	// ours does not. Our numbering is logical, theirs is not.
+	if (old_cluster == 2) {
+		old_cluster = 3;
+	} else if (old_cluster == 3) {
+		old_cluster = 2;
+	}
+
+	if (new_cluster == 2) {
+		new_cluster = 3;
+	} else if (new_cluster == 3) {
+		new_cluster = 2;
+	}
+
+	nodemask_zero(from);
+	nodemask_zero(to);
+
+	nodemask_set(from, old_cluster);
+	nodemask_set(to, new_cluster);
+
+	node0_size = numa_node_size(0, &node0_free);
+	node1_size = numa_node_size(1, &node1_free);
+	node2_size = numa_node_size(2, &node2_free);
+	node3_size = numa_node_size(3, &node3_free);
+
+	printf("NODE 0 SIZE: %li FREE: %li\n", node0_size, node0_free);
+	printf("NODE 1 SIZE: %li FREE: %li\n", node1_size, node1_free);
+	printf("NODE 2 SIZE: %li FREE: %li\n", node2_size, node2_free);
+	printf("NODE 3 SIZE: %li FREE: %li\n", node3_size, node3_free);
+
+	printf("START MIGRATE\n");
+
+	//result = numa_migrate_pages(pid, from, to);
+	result = numa_migrate_pages(pid, from, to);
+
+	printf("END MIGRATE\n");
+
+	node0_size = numa_node_size(0, &node0_free);
+	node1_size = numa_node_size(1, &node1_free);
+	node2_size = numa_node_size(2, &node2_free);
+	node3_size = numa_node_size(3, &node3_free);
+
+	printf("NODE 0 SIZE: %li FREE: %li\n", node0_size, node0_free);
+	printf("NODE 1 SIZE: %li FREE: %li\n", node1_size, node1_free);
+	printf("NODE 2 SIZE: %li FREE: %li\n", node2_size, node2_free);
+	printf("NODE 3 SIZE: %li FREE: %li\n", node3_size, node3_free);
+
+	return result;
+}

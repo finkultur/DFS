@@ -36,16 +36,16 @@ struct pid_set_struct {
 };
 
 /* Helper functions, see definitions below. */
-static inline color_t get_color(node_t *node);
-static inline node_t *get_sibling(node_t *node);
+static inline color_t get_color(node_t *min_node);
+static inline node_t *get_sibling(node_t *min_node);
 static node_t *find_node(pid_set_t *set, pid_t pid);
-static node_t *get_minimum_node(node_t *root, node_t *node, int cluster);
+static node_t *get_minimum_node(node_t *node, node_t *min_node, int cluster);
 static node_t *create_node(pid_t pid, int cpu, int cluster, int class);
-static void free_tree_nodes(node_t *root);
-static void rotate_left(pid_set_t *set, node_t *node);
-static void rotate_right(pid_set_t *set, node_t *node);
-static void insert_fix(pid_set_t *set, node_t *node);
-static void remove_fix(pid_set_t *set, node_t *node);
+static void free_tree_nodes(node_t *node);
+static void rotate_left(pid_set_t *set, node_t *min_node);
+static void rotate_right(pid_set_t *set, node_t *min_node);
+static void insert_fix(pid_set_t *set, node_t *min_node);
+static void remove_fix(pid_set_t *set, node_t *min_node);
 
 /* Creates a new set instance. */
 pid_set_t *pid_set_create(void)
@@ -254,31 +254,35 @@ pid_t pid_set_get_minimum_pid(pid_set_t *set, int cluster)
 	if (set->size == 0) {
 		return -1;
 	} else {
-		node = get_minimum_node(set->root, set->root, cluster);
+		node = get_minimum_node(set->root, NULL, cluster);
 	}
-	return node->pid;
+	if (node != NULL) {
+		return node->pid;
+	} else {
+		return -1;
+	}
 }
 
 /* HELPER FUNCTIONS */
 
 /* Returns the color of the node. If the node is NULL, black is returned by
  * convention. */
-static inline color_t get_color(node_t *node)
+static inline color_t get_color(node_t *min_node)
 {
-	if (node != NULL) {
-		return node->color;
+	if (min_node != NULL) {
+		return min_node->color;
 	} else {
 		return BLACK;
 	}
 }
 
 /* Returns the sibling of the node. May be NULL if no sibling exist. */
-static inline node_t *get_sibling(node_t *node)
+static inline node_t *get_sibling(node_t *min_node)
 {
-	if (node == node->parent->left) {
-		return node->parent->right;
+	if (min_node == min_node->parent->left) {
+		return min_node->parent->right;
 	} else {
-		return node->parent->left;
+		return min_node->parent->left;
 	}
 }
 
@@ -300,21 +304,27 @@ static node_t *find_node(pid_set_t *set, pid_t pid)
 	return node;
 }
 
+#include <stdio.h>
+
 /* Recursively traverses all nodes returning the one with the lowest class
- * value (first one found if multiple equal valued nodes exist) for the cpu. */
-node_t *get_minimum_node(node_t *root, node_t *node, int cluster)
+ * value (first one found if multiple equal valued nodes exist) for the
+ * cluster. */
+node_t *get_minimum_node(node_t *node, node_t *min_node, int cluster)
 {
-	node_t *left, *right;
-	if (root == NULL || node->class == 0) {
-		return node;
-	} else if (root->cluster == cluster && root->class < node->class) {
-		left = get_minimum_node(root->left, root, cluster);
-		right = get_minimum_node(root->right, root, cluster);
+	node_t *candidate;
+	if (node == NULL) {
+		return min_node;
+	} else if ((node->cluster == cluster) && (min_node == NULL)) {
+		candidate = get_minimum_node(node->left, node, cluster);
+		candidate = get_minimum_node(node->right, candidate, cluster);
+	} else if ((node->cluster == cluster) && (node->class < min_node->class)) {
+		candidate = get_minimum_node(node->left, node, cluster);
+		candidate = get_minimum_node(node->right, candidate, cluster);
 	} else {
-		left = get_minimum_node(root->left, node, cluster);
-		right = get_minimum_node(root->right, node, cluster);
+		candidate = get_minimum_node(node->left, min_node, cluster);
+		candidate = get_minimum_node(node->right, candidate, cluster);
 	}
-	return ((left->class) <= (right->class) ? left : right);
+	return candidate;
 }
 
 /* Creates and initializes a new node. */
@@ -336,75 +346,75 @@ static node_t *create_node(pid_t pid, int cpu, int cluster, int class)
 
 /* Performs a post-order depth-first traversal to recursively deallocate memory
  * for all nodes in the tree rooted at the specified root. */
-static void free_tree_nodes(node_t *root)
+static void free_tree_nodes(node_t *node)
 {
-	if (root == NULL) {
+	if (node == NULL) {
 		return;
 	} else {
-		free_tree_nodes(root->left);
-		free_tree_nodes(root->right);
-		free(root);
+		free_tree_nodes(node->left);
+		free_tree_nodes(node->right);
+		free(node);
 	}
 }
 
 /* Performs a left tree rotation around the specified node. */
-static void rotate_left(pid_set_t *set, node_t *node)
+static void rotate_left(pid_set_t *set, node_t *min_node)
 {
 	/* Rotate by redirecting appropriate pointers. */
-	node_t *new_root = node->right;
-	new_root->parent = node->parent;
-	if (node->parent == NULL) {
+	node_t *new_root = min_node->right;
+	new_root->parent = min_node->parent;
+	if (min_node->parent == NULL) {
 		set->root = new_root;
-	} else if (node == node->parent->left) {
-		node->parent->left = new_root;
+	} else if (min_node == min_node->parent->left) {
+		min_node->parent->left = new_root;
 	} else {
-		node->parent->right = new_root;
+		min_node->parent->right = new_root;
 	}
-	node->parent = new_root;
-	node->right = new_root->left;
+	min_node->parent = new_root;
+	min_node->right = new_root->left;
 	if (new_root->left != NULL) {
-		new_root->left->parent = node;
+		new_root->left->parent = min_node;
 	}
-	new_root->left = node;
+	new_root->left = min_node;
 }
 
 /* Performs a right tree rotation around the specified node. */
-static void rotate_right(pid_set_t *set, node_t *node)
+static void rotate_right(pid_set_t *set, node_t *min_node)
 {
 	/* Rotate by redirecting appropriate pointers. */
-	node_t *new_root = node->left;
-	new_root->parent = node->parent;
-	if (node->parent == NULL) {
+	node_t *new_root = min_node->left;
+	new_root->parent = min_node->parent;
+	if (min_node->parent == NULL) {
 		set->root = new_root;
-	} else if (node == node->parent->left) {
-		node->parent->left = new_root;
+	} else if (min_node == min_node->parent->left) {
+		min_node->parent->left = new_root;
 	} else {
-		node->parent->right = new_root;
+		min_node->parent->right = new_root;
 	}
-	node->parent = new_root;
-	node->left = new_root->right;
+	min_node->parent = new_root;
+	min_node->left = new_root->right;
 	if (new_root->right != NULL) {
-		new_root->right->parent = node;
+		new_root->right->parent = min_node;
 	}
-	new_root->right = node;
+	new_root->right = min_node;
 }
 
 /* Fixes any violated red-black tree properties after insertion. */
-static void insert_fix(pid_set_t *set, node_t *node)
+static void insert_fix(pid_set_t *set, node_t *min_node)
 {
 	node_t *uncle, *grandp;
 	while (1) {
 		/* If inserted node is tree root, just color it black. */
-		if (node->parent == NULL) {
-			node->color = BLACK;
+		if (min_node->parent == NULL) {
+			min_node->color = BLACK;
 			return;
 		}
 		/* If parent is black no tree property is violated by the insertion. */
-		if (get_color(node->parent) == BLACK) {
+		if (get_color(min_node->parent) == BLACK) {
 			return;
 		}
-		grandp = node->parent->parent;
-		if (node->parent == grandp->left) {
+		grandp = min_node->parent->parent;
+		if (min_node->parent == grandp->left) {
 			uncle = grandp->right;
 		} else {
 			uncle = grandp->left;
@@ -413,10 +423,10 @@ static void insert_fix(pid_set_t *set, node_t *node)
 		 * color the grandparent red and restart the fix operation starting
 		 * from grandparent. */
 		if (get_color(uncle) == RED) {
-			node->parent->color = BLACK;
+			min_node->parent->color = BLACK;
 			uncle->color = BLACK;
 			grandp->color = RED;
-			node = grandp;
+			min_node = grandp;
 		} else {
 			break;
 		}
@@ -427,17 +437,17 @@ static void insert_fix(pid_set_t *set, node_t *node)
 	 * depending on the position of the node.
 	 *
 	 * First step (may not be needed): */
-	if ((node == node->parent->right) && (node->parent == grandp->left)) {
-		rotate_left(set, node->parent);
-		node = node->left;
-	} else if ((node == node->parent->left) && (node->parent == grandp->right)) {
-		rotate_right(set, node->parent);
-		node = node->right;
+	if ((min_node == min_node->parent->right) && (min_node->parent == grandp->left)) {
+		rotate_left(set, min_node->parent);
+		min_node = min_node->left;
+	} else if ((min_node == min_node->parent->left) && (min_node->parent == grandp->right)) {
+		rotate_right(set, min_node->parent);
+		min_node = min_node->right;
 	}
 	/* Second step (always executed): */
-	node->parent->color = BLACK;
+	min_node->parent->color = BLACK;
 	grandp->color = RED;
-	if (node == node->parent->left) {
+	if (min_node == min_node->parent->left) {
 		rotate_right(set, grandp);
 	} else {
 		rotate_left(set, grandp);
@@ -446,76 +456,76 @@ static void insert_fix(pid_set_t *set, node_t *node)
 
 /* Fixes any violated red-black tree properties after removal. Don't try this
  * at home... */
-static void remove_fix(pid_set_t *set, node_t *node)
+static void remove_fix(pid_set_t *set, node_t *min_node)
 {
 	node_t *sibling;
 	while (1) {
 		/* Return if node is the tree root. */
-		if (node->parent == NULL) {
+		if (min_node->parent == NULL) {
 			return;
 		}
-		sibling = get_sibling(node);
+		sibling = get_sibling(min_node);
 		/* If node has a red sibling, inverse colors of sibling and parent,
 		 * then rotate around parent. */
 		if (get_color(sibling) == RED) {
 			sibling->color = BLACK;
-			node->parent->color = RED;
-			if (node == node->parent->left) {
-				rotate_left(set, node->parent);
+			min_node->parent->color = RED;
+			if (min_node == min_node->parent->left) {
+				rotate_left(set, min_node->parent);
 			} else {
-				rotate_right(set, node->parent);
+				rotate_right(set, min_node->parent);
 			}
-			sibling = get_sibling(node);
+			sibling = get_sibling(min_node);
 		}
 		/* If parent, sibling, and siblings children are all black, we repaint
 		 * the sibling red and restart operation from parent. */
-		if (get_color(node->parent) == BLACK && get_color(sibling) == BLACK
+		if (get_color(min_node->parent) == BLACK && get_color(sibling) == BLACK
 				&& get_color(sibling->left) == BLACK && get_color(
 				sibling->right) == BLACK) {
 			sibling->color = RED;
-			node = node->parent;
+			min_node = min_node->parent;
 		} else {
 			break;
 		}
 	}
 	/* If parent is red but sibling and children of sibling are black, repaint
 	 * parent black and sibling red. */
-	if (get_color(node->parent) == RED && get_color(sibling) == BLACK
+	if (get_color(min_node->parent) == RED && get_color(sibling) == BLACK
 			&& get_color(sibling->left) == BLACK && get_color(sibling->right)
 			== BLACK) {
 		sibling->color = RED;
-		node->parent->color = BLACK;
+		min_node->parent->color = BLACK;
 		return;
 	}
 	/* If get_sibling is black but the color of the sibling children differs,
 	 * repaint the sibling red, repaint all sibling children black and then
 	 * rotate either right or left around the sibling depending on the initial
 	 * colors of the sibling children. */
-	if (node == node->parent->left && get_color(sibling->left) == RED
+	if (min_node == min_node->parent->left && get_color(sibling->left) == RED
 			&& get_color(sibling->right) == BLACK) {
 		sibling->color = RED;
 		sibling->left->color = BLACK;
 		rotate_right(set, sibling);
-		sibling = get_sibling(node);
-	} else if (node == node->parent->right && get_color(sibling->left) == BLACK
+		sibling = get_sibling(min_node);
+	} else if (min_node == min_node->parent->right && get_color(sibling->left) == BLACK
 			&& get_color(sibling->right) == RED) {
 		sibling->color = RED;
 		sibling->right->color = BLACK;
 		rotate_left(set, sibling);
-		sibling = get_sibling(node);
+		sibling = get_sibling(min_node);
 	}
 	/* Finally, the sibling is colored as its parent and the parent is
 	 * colored black. Then if node is a left child the right child of the
 	 * sibling is colored black and the tree is rotated left around the node
 	 * parent. The same action is performed in the mirrored case. */
-	sibling->color = get_color(node->parent);
-	node->parent->color = BLACK;
-	if (node == node->parent->left) {
+	sibling->color = get_color(min_node->parent);
+	min_node->parent->color = BLACK;
+	if (min_node == min_node->parent->left) {
 		sibling->right->color = BLACK;
-		rotate_left(set, node->parent);
+		rotate_left(set, min_node->parent);
 	} else {
 		sibling->left->color = BLACK;
-		rotate_right(set, node->parent);
+		rotate_right(set, min_node->parent);
 	}
 }
 

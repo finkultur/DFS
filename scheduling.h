@@ -7,7 +7,7 @@
 #include "pid_set.h"
 
 /* Number of seconds between each invocation of the scheduler. */
-#define SCHEDULING_INTERVAL 1
+#define SCHEDULING_INTERVAL 250
 
 /* Factor used to set a limit for when process migration should be performed. */
 #define MIGRATION_FACTOR 2
@@ -35,10 +35,10 @@ int cluster_process_count[CPU_CLUSTER_COUNT];
 int cpu_process_count[CPU_COUNT];
 
 /* Memory operation counter values for each memory controller. */
-unsigned long int mc_ops[CPU_CLUSTER_COUNT];
+unsigned long long int mc_ops[CPU_CLUSTER_COUNT];
 
 /* Memory operation rates for each memory controller. */
-unsigned long int mc_rates[CPU_CLUSTER_COUNT];
+unsigned long long int mc_rates[CPU_CLUSTER_COUNT];
 
 /* Memprof data input file. */
 FILE *memprof_file;
@@ -75,6 +75,6 @@ int run_commands(void);
  * set to indicate that the scheduler can terminate. */
 void await_processes(void);
 
-/* Sets the timeout of the specified timer to the specified number of seconds.
- * Return 0 on success, otherwise -1. */
-int set_timer(timer_t *timer, int seconds);
+/* Sets the timeout of the specified timer to the specified number of
+ * milliseconds. Return 0 on success, otherwise -1. */
+int set_timer(timer_t *timer, size_t timeout);
