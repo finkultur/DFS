@@ -3,10 +3,8 @@
  * TODO: add description.
  * Scheduling routines. */
 
-#include <ctype.h>
 #include <fcntl.h>
 #include <numa.h>
-#include <numaif.h>
 #include <stdio.h>
 #include <sys/wait.h>
 #include <string.h>
@@ -25,10 +23,17 @@ static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 // DEBUG
 void print_memprof_data(void)
 {
-	int cluster;
-	for (cluster = 0; cluster < CPU_CLUSTER_COUNT; cluster++) {
-		printf("CLUSTER: %i PIDS: %i MEMOPS: %llu\n", cluster,
-				cluster_process_count[cluster], mc_rates[cluster]);
+	int i;
+	long int node_free[CPU_CLUSTER_COUNT];
+
+	numa_node_size(0, &node_free[0]);
+	numa_node_size(1, &node_free[1]);
+	numa_node_size(2, &node_free[3]);
+	numa_node_size(3, &node_free[2]);
+
+	for (i = 0; i < CPU_CLUSTER_COUNT; i++) {
+		printf("CLUSTER: %i PIDS: %i FREE: %lu MEMOPS: %llu\n", i,
+				cluster_process_count[i], node_free[i], mc_rates[i]);
 	}
 }
 
@@ -134,11 +139,14 @@ int init_scheduler(char *workload)
 void run_scheduler(void)
 {
 	pid_t pid;
-	int i, migrate, best_cluster, worst_cluster, cpu;
+	int i, migrate, best_cluster, worst_cluster;
+	//	int cpu;
 	unsigned long int mc_rate_limit;
 
 	/* Read memory operation statistics. */
 	read_memprof_data();
+
+	print_memprof_data();
 
 	/* Calculate memory operation rate limit for mirgration to occur. */
 	mc_rate_limit = 0;
@@ -148,8 +156,6 @@ void run_scheduler(void)
 	mc_rate_limit /= CPU_CLUSTER_COUNT;
 	mc_rate_limit *= MIGRATION_FACTOR;
 
-	//	printf("MIGRATION LIMIT: %lu\n", mc_rate_limit);
-//	print_memprof_data();
 
 	/* Check if process migration is needed. */
 	migrate = 0;
@@ -179,7 +185,7 @@ void run_scheduler(void)
 		//		printf("Found pid: %i cluster: %i cpu: %i\n", pid, pid_set_get_cluster(
 		//				pid_set, pid), pid_set_get_cpu(pid_set, pid));
 
-//		cpu = get_optimal_cpu(best_cluster);
+		//		cpu = get_optimal_cpu(best_cluster);
 
 		//		printf("New cpu %i\n", cpu);
 
@@ -191,15 +197,15 @@ void run_scheduler(void)
 		cluster_process_count[best_cluster]++;
 		cluster_process_count[worst_cluster]--;
 
-//		cpu_process_count[cpu]++;
-//		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
+		//		cpu_process_count[cpu]++;
+		//		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
 
 		pid_set_set_cluster(pid_set, pid, best_cluster);
-//		pid_set_set_cpu(pid_set, pid, cpu);
+		//		pid_set_set_cpu(pid_set, pid, cpu);
 
-//		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
-//			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
-//		}
+		//		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
+		//			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
+		//		}
 
 		//		printf("pid_set cluster: %i\n", pid_set_get_cluster(pid_set, pid));
 		//		printf("pid_set cpu: %i\n", pid_set_get_cpu(pid_set, pid));
@@ -232,9 +238,6 @@ int run_commands(void)
 			cpu_process_count[cpu]++;
 			/* Remove command from queue. */
 			cmd_queue_dequeue(cmd_queue);
-
-			printf("PROCESS COUNT: %i\n", pid_set_get_size(pid_set));
-
 		} else {
 			if (tmc_cpus_set_my_cpu(cpu) < 0) {
 				tmc_task_die("Failure in tmc_set_my_cpu()");
@@ -399,15 +402,9 @@ static int get_optimal_cpu(int cluster)
 /* Migrates the memory of a process to a new cluster. */
 static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
 {
-	int result;
-	long node0_size, node0_free;
-	long node1_size, node1_free;
-	long node2_size, node2_free;
-	long node3_size, node3_free;
+	long int node0_free, node1_free, node2_free, node3_free;
 
-	nodemask_t *from = calloc(1, sizeof(nodemask_t));
-
-	nodemask_t *to = calloc(1, sizeof(nodemask_t));
+	nodemask_t from_nodes, to_nodes;
 
 	// Tileras numbering of memory controllers goes clockwise,
 	// ours does not. Our numbering is logical, theirs is not.
@@ -423,38 +420,34 @@ static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
 		new_cluster = 2;
 	}
 
-	nodemask_zero(from);
-	nodemask_zero(to);
+	nodemask_zero(&from_nodes);
+	nodemask_zero(&to_nodes);
 
-	nodemask_set(from, old_cluster);
-	nodemask_set(to, new_cluster);
+	nodemask_set(&from_nodes, old_cluster);
+	nodemask_set(&to_nodes, new_cluster);
 
-	node0_size = numa_node_size(0, &node0_free);
-	node1_size = numa_node_size(1, &node1_free);
-	node2_size = numa_node_size(2, &node2_free);
-	node3_size = numa_node_size(3, &node3_free);
+	numa_node_size(0, &node0_free);
+	numa_node_size(1, &node1_free);
+	numa_node_size(2, &node2_free);
+	numa_node_size(3, &node3_free);
 
-	printf("NODE 0 SIZE: %li FREE: %li\n", node0_size, node0_free);
-	printf("NODE 1 SIZE: %li FREE: %li\n", node1_size, node1_free);
-	printf("NODE 2 SIZE: %li FREE: %li\n", node2_size, node2_free);
-	printf("NODE 3 SIZE: %li FREE: %li\n", node3_size, node3_free);
+	printf("NODE 0 FREE: %li\n", node0_free);
+	printf("NODE 1 FREE: %li\n", node1_free);
+	printf("NODE 2 FREE: %li\n", node2_free);
+	printf("NODE 3 FREE: %li\n", node3_free);
 
 	printf("START MIGRATE\n");
-
-	//result = numa_migrate_pages(pid, from, to);
-	result = numa_migrate_pages(pid, from, to);
-
+	numa_migrate_pages(pid, &from_nodes, &to_nodes);
 	printf("END MIGRATE\n");
 
-	node0_size = numa_node_size(0, &node0_free);
-	node1_size = numa_node_size(1, &node1_free);
-	node2_size = numa_node_size(2, &node2_free);
-	node3_size = numa_node_size(3, &node3_free);
+	numa_node_size(0, &node0_free);
+	numa_node_size(1, &node1_free);
+	numa_node_size(2, &node2_free);
+	numa_node_size(3, &node3_free);
+	printf("NODE 0 FREE: %li\n", node0_free);
+	printf("NODE 1 FREE: %li\n", node1_free);
+	printf("NODE 2 FREE: %li\n", node2_free);
+	printf("NODE 3 FREE: %li\n", node3_free);
 
-	printf("NODE 0 SIZE: %li FREE: %li\n", node0_size, node0_free);
-	printf("NODE 1 SIZE: %li FREE: %li\n", node1_size, node1_free);
-	printf("NODE 2 SIZE: %li FREE: %li\n", node2_size, node2_free);
-	printf("NODE 3 SIZE: %li FREE: %li\n", node3_size, node3_free);
-
-	return result;
+	return 0;
 }
