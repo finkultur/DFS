@@ -140,13 +140,13 @@ void run_scheduler(void)
 {
 	pid_t pid;
 	int i, migrate, best_cluster, worst_cluster;
-	//	int cpu;
+	int cpu;
 	unsigned long int mc_rate_limit;
 
 	/* Read memory operation statistics. */
 	read_memprof_data();
 
-	print_memprof_data();
+	//print_memprof_data();
 
 	/* Calculate memory operation rate limit for mirgration to occur. */
 	mc_rate_limit = 0;
@@ -176,36 +176,36 @@ void run_scheduler(void)
 			|| cluster_process_count[worst_cluster] <= 1) {
 		return;
 	} else {
-		//		printf("MIGRATING....\n");
-		//		printf("Worst cluster:  %i\n", worst_cluster);
-		//		printf("Best cluster: %i\n", best_cluster);
+		printf("MIGRATING....\n");
+		printf("Worst cluster:  %i\n", worst_cluster);
+		printf("Best cluster: %i\n", best_cluster);
 
 		pid = pid_set_get_minimum_pid(pid_set, worst_cluster);
 
 		//		printf("Found pid: %i cluster: %i cpu: %i\n", pid, pid_set_get_cluster(
 		//				pid_set, pid), pid_set_get_cpu(pid_set, pid));
 
-		//		cpu = get_optimal_cpu(best_cluster);
+		cpu = get_optimal_cpu(best_cluster);
 
-		//		printf("New cpu %i\n", cpu);
+		printf("New cpu %i\n", cpu);
 
 
-		printf("Migrate memory for pid %i. From cluster %i to %i\n", pid,
-				worst_cluster, best_cluster);
-		migrate_memory(pid, worst_cluster, best_cluster);
+		//printf("Migrate memory for pid %i. From cluster %i to %i\n", pid,
+		//		worst_cluster, best_cluster);
+		//migrate_memory(pid, worst_cluster, best_cluster);
 
 		cluster_process_count[best_cluster]++;
 		cluster_process_count[worst_cluster]--;
 
-		//		cpu_process_count[cpu]++;
-		//		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
+		cpu_process_count[cpu]++;
+		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
 
 		pid_set_set_cluster(pid_set, pid, best_cluster);
-		//		pid_set_set_cpu(pid_set, pid, cpu);
+		pid_set_set_cpu(pid_set, pid, cpu);
 
-		//		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
-		//			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
-		//		}
+		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
+			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
+		}
 
 		//		printf("pid_set cluster: %i\n", pid_set_get_cluster(pid_set, pid));
 		//		printf("pid_set cpu: %i\n", pid_set_get_cpu(pid_set, pid));
@@ -243,7 +243,8 @@ int run_commands(void)
 				tmc_task_die("Failure in tmc_set_my_cpu()");
 			}
 			chdir(cmd->dir);
-			/* Check redirection of stdin/stdout. */
+
+			/* Check redirection of stdin */
 			if (cmd->input_file != NULL) {
 				fd = open(cmd->input_file, O_RDONLY);
 				if (fd == -1) {
@@ -253,22 +254,26 @@ int run_commands(void)
 				dup2(fd, 0);
 			}
 
-			//			if (cmd->output_file != NULL) {
-			//				fd = open(cmd->output_file, O_CREAT);
-			//				if (fd == -1) {
-			//					fprintf(stderr, "Failed to redirect stdout\n");
-			//					exit(EXIT_FAILURE);
-			//				}
-			//				dup2(fd, 1);
-			//			}
+            /*
+            // Redirection of stdout
+			if (cmd->output_file != NULL) {
+				fd = open(cmd->output_file, O_CREAT);
+				if (fd == -1) {
+					fprintf(stderr, "Failed to redirect stdout\n");
+					exit(EXIT_FAILURE);
+				}
+				dup2(fd, 1);
+			}
+            */
 
-			//			 SURPRESS ANOYING OUTPUT
-
+			// SURPRESS ANOYING OUTPUT
+            /*
 			fd = open("/dev/null", O_CREAT);
 			if (fd == -1) {
 				exit(EXIT_FAILURE);
 			}
 			dup2(fd, 1);
+            */
 
 			/* Execute program. */
 			if (strcmp(cmd->cmd, "sh") == 0) {

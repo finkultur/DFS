@@ -26,7 +26,8 @@ MONARGS = \
 #EXEARGS = workloads/wl_yeah.txt # ~ 560s
 #EXEARGS = workloads/wl_yeahX2.txt # ~ ?s
 #EXEARGS = workloads/wl_test_derp.txt # ~ 85s
-EXEARGS = workloads/wl_test.txt # ~ 124s
+#EXEARGS = workloads/wl_test.txt # ~ 124s
+EXEARGS = workloads/wl_May15_1.txt # ~ ? s
 
 all: clean builddir $(OBJECTS) $(EXECUTABLE)
 	
