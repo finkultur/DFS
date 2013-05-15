@@ -1,6 +1,5 @@
 /* scheduling.c
  *
- * TODO: add description.
  * Scheduling routines. */
 
 #include <fcntl.h>
@@ -21,28 +20,26 @@ static int get_optimal_cpu(int cluster);
 static int migrate_memory(pid_t pid, int old_cluster, int new_cluster);
 
 // DEBUG
-void print_memprof_data(void)
-{
-	int i;
-	long int node_free[CPU_CLUSTER_COUNT];
-
-	numa_node_size(0, &node_free[0]);
-	numa_node_size(1, &node_free[1]);
-	numa_node_size(2, &node_free[3]);
-	numa_node_size(3, &node_free[2]);
-
-	for (i = 0; i < CPU_CLUSTER_COUNT; i++) {
-		printf("CLUSTER: %i PIDS: %i FREE: %lu MEMOPS: %llu\n", i,
-				cluster_process_count[i], node_free[i], mc_rates[i]);
-	}
+void print_memprof_data(void) {
+	//int i;
+	//	long int node_free[CPU_CLUSTER_COUNT];
+	//
+	//	numa_node_size(0, &node_free[0]);
+	//	numa_node_size(1, &node_free[1]);
+	//	numa_node_size(2, &node_free[3]);
+	//	numa_node_size(3, &node_free[2]);
+	//
+	//	for (i = 0; i < CPU_CLUSTER_COUNT; i++) {
+	//		printf("CLUSTER: %i PIDS: %i FREE: %lu MEMOPS: %llu\n", i,
+	//				cluster_process_count[i], node_free[i], mc_rates[i]);
+	//	}
 }
 
 /* Initialize scheduler. */
-int init_scheduler(char *workload)
-{
+int init_scheduler(char *workload) {
 	int i;
-	char *data_token, *value_token;
-	char line_buffer[MEMPROF_BUFFER_SIZE];
+	//char *data_token, *value_token;
+	//char line_buffer[MEMPROF_BUFFER_SIZE];
 
 	/* Get online CPUs and initialize CPU sets. */
 	tmc_cpus_get_online_cpus(&online_set);
@@ -68,11 +65,11 @@ int init_scheduler(char *workload)
 	}
 
 	/* Check for NUMA. */
-	if (numa_available() == -1) {
-		fprintf(stderr, "NUMA policy unavailable\n");
-	}
+	//	if (numa_available() == -1) {
+	//		fprintf(stderr, "NUMA policy unavailable\n");
+	//	}
 
-	printf("NUMA MAX NODE: %i\n", numa_max_node());
+	//printf("NUMA MAX NODE: %i\n", numa_max_node());
 
 	/* Initialize command queue. */
 	cmd_queue = cmd_queue_create(workload);
@@ -111,33 +108,32 @@ int init_scheduler(char *workload)
 	}
 
 	/* Initialize memory controller profiling. */
-	memprof_file = fopen(MEMPROF_DATA_FILE, "r");
-	if (memprof_file == NULL) {
-		fprintf(stderr, "Failed to open memory controller profiling data\n");
-		return -1;
-	}
-	while (fgets(line_buffer, MEMPROF_BUFFER_SIZE, memprof_file) != NULL) {
-		data_token = strtok(line_buffer, " ");
-		value_token = strtok(NULL, " ");
-		if (data_token != NULL && value_token != NULL) {
-			if (strcmp(data_token, "shim0_op_count:") == 0) {
-				mc_ops[0] = strtoull(value_token, NULL, 0);
-			} else if (strcmp(data_token, "shim1_op_count:") == 0) {
-				mc_ops[1] = strtoull(value_token, NULL, 0);
-			} else if (strcmp(data_token, "shim2_op_count:") == 0) {
-				mc_ops[3] = strtoull(value_token, NULL, 0);
-			} else if (strcmp(data_token, "shim3_op_count:") == 0) {
-				mc_ops[2] = strtoull(value_token, NULL, 0);
-			}
-		}
-	}
+	//	memprof_file = fopen(MEMPROF_DATA_FILE, "r");
+	//	if (memprof_file == NULL) {
+	//		fprintf(stderr, "Failed to open memory controller profiling data\n");
+	//		return -1;
+	//	}
+	//	while (fgets(line_buffer, MEMPROF_BUFFER_SIZE, memprof_file) != NULL) {
+	//		data_token = strtok(line_buffer, " ");
+	//		value_token = strtok(NULL, " ");
+	//		if (data_token != NULL && value_token != NULL) {
+	//			if (strcmp(data_token, "shim0_op_count:") == 0) {
+	//				mc_ops[0] = strtoull(value_token, NULL, 0);
+	//			} else if (strcmp(data_token, "shim1_op_count:") == 0) {
+	//				mc_ops[1] = strtoull(value_token, NULL, 0);
+	//			} else if (strcmp(data_token, "shim2_op_count:") == 0) {
+	//				mc_ops[3] = strtoull(value_token, NULL, 0);
+	//			} else if (strcmp(data_token, "shim3_op_count:") == 0) {
+	//				mc_ops[2] = strtoull(value_token, NULL, 0);
+	//			}
+	//		}
+	//	}
 
 	return 0;
 }
 
 /* Perform scheduling tasks. */
-void run_scheduler(void)
-{
+void run_scheduler(void) {
 	pid_t pid;
 	int i, migrate, best_cluster, worst_cluster;
 	//	int cpu;
@@ -155,7 +151,6 @@ void run_scheduler(void)
 	}
 	mc_rate_limit /= CPU_CLUSTER_COUNT;
 	mc_rate_limit *= MIGRATION_FACTOR;
-
 
 	/* Check if process migration is needed. */
 	migrate = 0;
@@ -214,8 +209,7 @@ void run_scheduler(void)
 }
 
 /* Start the next set of commands in queue. */
-int run_commands(void)
-{
+int run_commands(void) {
 	int fd, cluster, cpu, timeout;
 	int pid;
 	cmd_t *cmd;
@@ -225,8 +219,8 @@ int run_commands(void)
 		if (cmd->start > run_clock) {
 			break;
 		}
-		cluster = get_optimal_cluster();
-		cpu = get_optimal_cpu(cluster);
+		cluster = 0;//get_optimal_cluster();
+		cpu = cmd->cpu;//get_optimal_cpu(cluster);
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stderr, "Failed to fork process\n");
@@ -239,6 +233,7 @@ int run_commands(void)
 			/* Remove command from queue. */
 			cmd_queue_dequeue(cmd_queue);
 		} else {
+			// Set CPU to the predefined value from cmd-list
 			if (tmc_cpus_set_my_cpu(cpu) < 0) {
 				tmc_task_die("Failure in tmc_set_my_cpu()");
 			}
@@ -253,22 +248,21 @@ int run_commands(void)
 				dup2(fd, 0);
 			}
 
-			//			if (cmd->output_file != NULL) {
-			//				fd = open(cmd->output_file, O_CREAT);
-			//				if (fd == -1) {
-			//					fprintf(stderr, "Failed to redirect stdout\n");
-			//					exit(EXIT_FAILURE);
-			//				}
-			//				dup2(fd, 1);
-			//			}
-
-			//			 SURPRESS ANOYING OUTPUT
-
-			fd = open("/dev/null", O_CREAT);
-			if (fd == -1) {
-				exit(EXIT_FAILURE);
+			if (cmd->output_file != NULL) {
+				fd = open(cmd->output_file, O_CREAT);
+				if (fd == -1) {
+					fprintf(stderr, "Failed to redirect stdout\n");
+					exit(EXIT_FAILURE);
+				}
+				dup2(fd, 1);
 			}
-			dup2(fd, 1);
+
+			//	SURPRESS ANOYING OUTPUT
+			//			fd = open("/dev/null", O_CREAT);
+			//			if (fd == -1) {
+			//				exit(EXIT_FAILURE);
+			//			}
+			//			dup2(fd, 1);
 
 			/* Execute program. */
 			if (strcmp(cmd->cmd, "sh") == 0) {
@@ -298,8 +292,7 @@ int run_commands(void)
 }
 
 /* Wait for terminated child processes. */
-void await_processes(void)
-{
+void await_processes(void) {
 	pid_t pid;
 	/* Await all terminated child processes. */
 	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0) {
@@ -314,8 +307,7 @@ void await_processes(void)
 }
 
 /* Sets the timeout of the specified timer. */
-int set_timer(timer_t *timer, size_t timeout)
-{
+int set_timer(timer_t *timer, size_t timeout) {
 	struct itimerspec value;
 	value.it_interval.tv_sec = timeout / 1000;
 	value.it_interval.tv_nsec = (timeout % 1000) * 1000000;
@@ -328,8 +320,7 @@ int set_timer(timer_t *timer, size_t timeout)
 }
 
 /**/
-static int read_memprof_data(void)
-{
+static int read_memprof_data(void) {
 	unsigned long long int value;
 	char *data_token, *value_token;
 	char line_buffer[MEMPROF_BUFFER_SIZE];
@@ -362,8 +353,7 @@ static int read_memprof_data(void)
 }
 
 /* Finds and returns the number of the cluster with least contention. */
-static int get_optimal_cluster(void)
-{
+static int get_optimal_cluster(void) {
 	int i, optimal_cluster;
 	optimal_cluster = 0;
 	for (i = 0; i < CPU_CLUSTER_COUNT; i++) {
@@ -375,8 +365,7 @@ static int get_optimal_cluster(void)
 }
 
 /* Returns the optimal cpu from the specified cluster. */
-static int get_optimal_cpu(int cluster)
-{
+static int get_optimal_cpu(int cluster) {
 	int cpu, start;
 	/* Set start to first cpu in cluster. */
 	if (cluster == 0)
@@ -400,8 +389,7 @@ static int get_optimal_cpu(int cluster)
 }
 
 /* Migrates the memory of a process to a new cluster. */
-static int migrate_memory(pid_t pid, int old_cluster, int new_cluster)
-{
+static int migrate_memory(pid_t pid, int old_cluster, int new_cluster) {
 	long int node0_free, node1_free, node2_free, node3_free;
 
 	nodemask_t from_nodes, to_nodes;

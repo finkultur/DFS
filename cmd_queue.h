@@ -31,6 +31,7 @@ typedef struct cmd_descriptor_struct cmd_t;
 struct cmd_descriptor_struct {
 	int start; // Command start time
 	int class; // Class number, 0 for undefined
+	int cpu; // Predefined CPU for totally offline scheduling. -1 for undefined
 	char *dir; // Working directory
 	char *cmd; // Command
 	char *input_file; // Redirect stdin

@@ -159,6 +159,11 @@ static int parse_line(char *line, entry_t *entry)
 		return -1;
 	}
 	entry->cmd_desc.class = atoi(token);
+	/* Parse cpu. */
+	if ((token = strtok(NULL, DELIMITER)) == NULL) {
+		return -1;
+	}
+	entry->cmd_desc.cpu = atoi(token);
 	/* Parse working directory. */
 	if ((token = strtok(NULL, DELIMITER)) == NULL) {
 		return -1;

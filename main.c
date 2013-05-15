@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 		sigwait(&signal_mask, &signal);
 		switch (signal) {
 		case SIGPOLL:
-			run_scheduler();
+			//run_scheduler();
 			break;
 		case SIGALRM:
 			timeout = run_commands();
