@@ -41,13 +41,11 @@ void print_memprof_data(void)
 int init_scheduler(char *workload)
 {
 	int i;
-	char *data_token, *value_token;
-	char line_buffer[MEMPROF_BUFFER_SIZE];
 
 	/* Get online CPUs and initialize CPU sets. */
 	tmc_cpus_get_online_cpus(&online_set);
 
-	tmc_cpus_clear(&cluster_sets[0]);
+	/*tmc_cpus_clear(&cluster_sets[0]);
 	tmc_cpus_clear(&cluster_sets[1]);
 	tmc_cpus_clear(&cluster_sets[2]);
 	tmc_cpus_clear(&cluster_sets[3]);
@@ -61,7 +59,7 @@ int init_scheduler(char *workload)
 	tmc_cpus_intersect_cpus(&cluster_sets[1], &online_set);
 	tmc_cpus_intersect_cpus(&cluster_sets[2], &online_set);
 	tmc_cpus_intersect_cpus(&cluster_sets[3], &online_set);
-
+    */
 	/* Set scheduler affinity (any online cpu). */
 	if (tmc_cpus_set_my_affinity(&online_set)) {
 		tmc_task_die("failure in set my affinity");
@@ -111,7 +109,7 @@ int init_scheduler(char *workload)
 	}
 
 	/* Initialize memory controller profiling. */
-	memprof_file = fopen(MEMPROF_DATA_FILE, "r");
+	/*memprof_file = fopen(MEMPROF_DATA_FILE, "r");
 	if (memprof_file == NULL) {
 		fprintf(stderr, "Failed to open memory controller profiling data\n");
 		return -1;
@@ -131,86 +129,8 @@ int init_scheduler(char *workload)
 			}
 		}
 	}
-
+    */
 	return 0;
-}
-
-/* Perform scheduling tasks. */
-void run_scheduler(void)
-{
-	pid_t pid;
-	int i, migrate, best_cluster, worst_cluster;
-	int cpu;
-	unsigned long int mc_rate_limit;
-
-	/* Read memory operation statistics. */
-	read_memprof_data();
-
-	//print_memprof_data();
-
-	/* Calculate memory operation rate limit for mirgration to occur. */
-	mc_rate_limit = 0;
-	for (i = 0; i < CPU_CLUSTER_COUNT; i++) {
-		mc_rate_limit += mc_rates[i];
-	}
-	mc_rate_limit /= CPU_CLUSTER_COUNT;
-	mc_rate_limit *= MIGRATION_FACTOR;
-
-
-	/* Check if process migration is needed. */
-	migrate = 0;
-	best_cluster = 0;
-	worst_cluster = 0;
-	for (i = 0; i < CPU_CLUSTER_COUNT; i++) {
-		if (mc_rates[i] > mc_rate_limit) {
-			migrate = 1;
-		}
-		if (mc_rates[i] < mc_rates[best_cluster]) {
-			best_cluster = i;
-		} else if (mc_rates[i] > mc_rates[worst_cluster]) {
-			worst_cluster = i;
-		}
-	}
-
-	if (migrate == 0 || best_cluster == worst_cluster
-			|| cluster_process_count[worst_cluster] <= 1) {
-		return;
-	} else {
-		printf("MIGRATING....\n");
-		printf("Worst cluster:  %i\n", worst_cluster);
-		printf("Best cluster: %i\n", best_cluster);
-
-		pid = pid_set_get_minimum_pid(pid_set, worst_cluster);
-
-		//		printf("Found pid: %i cluster: %i cpu: %i\n", pid, pid_set_get_cluster(
-		//				pid_set, pid), pid_set_get_cpu(pid_set, pid));
-
-		cpu = get_optimal_cpu(best_cluster);
-
-		printf("New cpu %i\n", cpu);
-
-
-		//printf("Migrate memory for pid %i. From cluster %i to %i\n", pid,
-		//		worst_cluster, best_cluster);
-		//migrate_memory(pid, worst_cluster, best_cluster);
-
-		cluster_process_count[best_cluster]++;
-		cluster_process_count[worst_cluster]--;
-
-		cpu_process_count[cpu]++;
-		cpu_process_count[pid_set_get_cpu(pid_set, pid)]--;
-
-		pid_set_set_cluster(pid_set, pid, best_cluster);
-		pid_set_set_cpu(pid_set, pid, cpu);
-
-		if (tmc_cpus_set_task_cpu(cpu, pid) < 0) {
-			tmc_task_die("Failure in tmc_cpus_set_task_cpu()");
-		}
-
-		//		printf("pid_set cluster: %i\n", pid_set_get_cluster(pid_set, pid));
-		//		printf("pid_set cpu: %i\n", pid_set_get_cpu(pid_set, pid));
-
-	}
 }
 
 /* Start the next set of commands in queue. */

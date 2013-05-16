@@ -62,7 +62,7 @@ int init_scheduler(char *workload);
 /* Performs the scheduling actions. These actions involves calculating the
  * current rate of memory operations on each controller and migrating processes
  * to balance the contention if necessary. */
-void run_scheduler(void);
+//void run_scheduler(void);
 
 /* Starts the commands queued for startup at the current clock time. On success
  * the number of seconds until the next set of commands should be started is

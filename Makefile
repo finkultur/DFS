@@ -13,7 +13,6 @@ MONARGS = \
 	--pci \
 	--tile 8x8 \
 	--hv-bin-dir /scratch/src/sys/hv \
-	--hvc /scratch/vmlinux-pci.hvc \
 	--upload /opt/tilepro/tile/usr/lib/libnuma.so.1 /usr/lib/libnuma.so.1 \
 	--mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/ \
 	--mount-same /scratch/cBench/automotive_bitcount/src/ \
@@ -22,6 +21,7 @@ MONARGS = \
 #	-- cat /proc/692/numa_maps
 #   --hvx LD_CACHE_HASH=ro \
 #   --hvx dataplane=1-63 \
+#  --hvc /scratch/vmlinux-pci.hvc \
 
 #EXEARGS = workloads/wl_yeah.txt # ~ 560s
 #EXEARGS = workloads/wl_yeahX2.txt # ~ ?s
