@@ -30,6 +30,7 @@
 289 0 /home/vikni/trashmem/ tmem
 302 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
 308 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+289 0 /home/vikni/trashmem/ tmem
 327 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
 335 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
 339 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in
@@ -40,3 +41,18 @@
 405 0 /home/vikni/trashmem/ tmem
 425 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
 475 0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+589 0 /home/vikni/trashmem/ tmem
+689 0 /home/vikni/trashmem/ tmem
+789 0 /home/vikni/trashmem/ tmem
+889 0 /home/vikni/trashmem/ tmem
+889 0 /home/vikni/trashmem/ tmem
+998 0 /home/vikni/trashmem/ tmem
+1000 0 /home/vikni/trashmem/ tmem
+1100 0 /home/vikni/trashmem/ tmem
+1200 0 /home/vikni/trashmem/ tmem
+1300 0 /home/vikni/trashmem/ tmem
+1400 0 /home/vikni/trashmem/ tmem
+1500 0 /home/vikni/trashmem/ tmem
+1600 0 /home/vikni/trashmem/ tmem
+1700 0 /home/vikni/trashmem/ tmem
+1800 0 /home/vikni/trashmem/ tmem

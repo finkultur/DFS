@@ -12,6 +12,7 @@ MONITOR = /opt/tilepro/bin/tile-monitor
 MONARGS = \
 	--pci \
 	--tile 8x8 \
+	--hvc /scratch/vmlinux-pci.hvc \
 	--hv-bin-dir /scratch/src/sys/hv \
 	--upload /opt/tilepro/tile/usr/lib/libnuma.so.1 /usr/lib/libnuma.so.1 \
 	--mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/ \
