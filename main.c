@@ -24,7 +24,11 @@ int main(int argc, char *argv[])
 	gettimeofday(&start_time, NULL);
 
 	/* Check for valid command line arguments. */
-	if (argc != 2) {
+	if (argc == 3) {
+        char *logfile = argv[2];
+        printf("DFS scheduler initalized, writing output to %s\n", logfile);
+        freopen(logfile, "a+", stdout);
+    } else if (argc != 2) {
 		fprintf(stderr, "Usage: %s <workload file>\n", argv[0]);
 		return 1;
 	}
