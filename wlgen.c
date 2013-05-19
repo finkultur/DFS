@@ -17,6 +17,7 @@ char *cmds[] = {"1 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_
                 ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps"
                 ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of"
 //                ,"0 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 300 myreference.dat 0 1 ../../data/train/input/100_100_130_cf_b.of"
+                ,"0 /home/vikni/trashmem/ tmem"
                };
 
 /*

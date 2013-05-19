@@ -16,6 +16,7 @@ MONARGS = \
 	--upload /opt/tilepro/tile/usr/lib/libnuma.so.1 /usr/lib/libnuma.so.1 \
 	--mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/ \
 	--mount-same /scratch/cBench/automotive_bitcount/src/ \
+	--mount-same /home/vikni/trashmem/ \
 	--here \
 	--quit \
 #	-- cat /proc/692/numa_maps
@@ -27,7 +28,7 @@ MONARGS = \
 #EXEARGS = workloads/wl_yeahX2.txt # ~ ?s
 #EXEARGS = workloads/wl_test_derp.txt # ~ 85s
 #EXEARGS = workloads/wl_test.txt # ~ 124s
-EXEARGS = workloads/wl_May15_1.txt # ~ ? s
+EXEARGS = workloads/wl_99.txt # ~ ? s
 
 all: clean builddir $(OBJECTS) $(EXECUTABLE)
 	
