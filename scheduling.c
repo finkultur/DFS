@@ -240,6 +240,7 @@ int run_commands(void)
 			cmd_queue_dequeue(cmd_queue);
 		} else {
 			if (tmc_cpus_set_my_cpu(cpu) < 0) {
+                fprintf(stderr, "Failure in tmc_set_my_cpu(%i)\n", cpu);
 				tmc_task_die("Failure in tmc_set_my_cpu()");
 			}
 			chdir(cmd->dir);
@@ -278,12 +279,12 @@ int run_commands(void)
 			/* Execute program. */
 			if (strcmp(cmd->cmd, "sh") == 0) {
 				if (execvp(cmd->cmd, cmd->argv) != 0) {
-					fprintf(stderr, "Failed to execute command\n");
+					fprintf(stderr, "Failed to execute command %s\n", cmd->cmd);
 					exit(EXIT_FAILURE);
 				}
 			} else {
 				if (execv(cmd->cmd, cmd->argv) != 0) {
-					fprintf(stderr, "Failed to execute command\n");
+					fprintf(stderr, "Failed to execute command %s\n", cmd->cmd);
 					exit(EXIT_FAILURE);
 				}
 
