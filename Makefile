@@ -12,8 +12,7 @@ MONITOR = /opt/tilepro/bin/tile-monitor
 MONARGS = \
 	--pci \
 	--mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/ \
-	--here \
-	--quit \
+	--here
 
 all: clean builddir $(OBJECTS) $(EXECUTABLE)
 	

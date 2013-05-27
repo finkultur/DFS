@@ -93,7 +93,7 @@ int stop_scheduler(void)
 		msec = (end_time.tv_sec - start_time.tv_sec) * 1000;
 		msec += (end_time.tv_usec - start_time.tv_usec) / 1000;
 		fprintf(stdlog, "Scheduler stopped\n");
-		fprintf(stdlog, "%i commands ended successfully\n", end_count);
+		fprintf(stdlog, "%i commands ran successfully\n", end_count);
 		fprintf(stdlog, "Execution time: %lu,%lu seconds\n",
 				msec / 1000, msec % 1000);
 		/* Release allocated resources. */
@@ -171,8 +171,13 @@ void await_processes(void)
 	pid_t pid;
 	/* Await all terminated child processes. */
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-		end_count++;
-		fprintf(stdlog, "Process %i terminated with status %i\n", pid, status);
+		if (WIFEXITED(status)) {
+			end_count++;
+			fprintf(stdlog, "Process %i terminated with status %i\n",
+					pid, WEXITSTATUS(status));
+		} else {
+			fprintf(stdlog, "Process %i terminated abnormally\n", pid);
+		}
 	}
 	/* Set flag if there are no more processes to wait for. */
 	if (pid < 0 && all_started == 1) {

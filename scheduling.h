@@ -10,7 +10,7 @@
 #include "cmd_queue.h"
 
 /* Default file for log output. */
-#define SCHEDULER_LOG "cfs.log"
+#define SCHEDULER_LOG "run.log"
 
 /* Initializes the scheduler with the specified workload and optional log file.
  * If no log file is specified messages are logged to a default log file.
