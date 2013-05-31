@@ -93,6 +93,7 @@ int stop_scheduler(void)
 		msec = (end_time.tv_sec - start_time.tv_sec) * 1000;
 		msec += (end_time.tv_usec - start_time.tv_usec) / 1000;
 		fprintf(stdlog, "Scheduler stopped\n");
+        fprintf(stdlog, "%i commands started\n", start_count);
 		fprintf(stdlog, "%i commands ran successfully\n", end_count);
 		fprintf(stdlog, "Execution time: %lu,%lu seconds\n",
 				msec / 1000, msec % 1000);
