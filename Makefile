@@ -7,12 +7,16 @@ OBJECTS = $(addprefix $(BUILDDIR)/, main.o cmd_queue.o scheduling.o)
 EXECUTABLE = $(BUILDDIR)/cfs
 BUILDDIR = ./build
 # Executing (using tile-monitor):
-EXEARGS = workloads/workload.txt
+EXEARGS = workloads/wl_107.txt logfile_wl107_cfs_run.txt
 MONITOR = /opt/tilepro/bin/tile-monitor
 MONARGS = \
 	--pci \
 	--mount-same /opt/benchmarks/SPEC2006/benchspec/CPU2006/ \
+	--mount-same /scratch/trashmem/ \
+	--mount-same /scratch/cBench/ \
 	--here
+
+MCSTAT = mcstat -c
 
 all: clean builddir $(OBJECTS) $(EXECUTABLE)
 	
@@ -20,7 +24,7 @@ clean:
 	rm -f $(OBJECTS) $(EXECUTABLE)
 
 run: all
-	$(MONITOR) $(MONARGS) -- $(EXECUTABLE) $(EXEARGS)  
+	$(MONITOR) $(MONARGS) -- $(MCSTAT) $(EXECUTABLE) $(EXEARGS)  
 
 run_grid: all
 	env \
