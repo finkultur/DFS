@@ -291,14 +291,15 @@ void run_commands(void)
 		cmd = cmd_queue_front(queue);
 		node = get_optimal_node();
 		cpu = get_optimal_cpu(node);
-		fprintf(stdlog, "Starting command: %s node: %i CPU: %i\n",
-				cmd->cmd, node, cpu);
+
 		pid = fork();
 		if (pid < 0) {
 			fprintf(stdlog, "Failed to fork process\n");
 			cmd_queue_dequeue(queue);
 		} else if (pid > 0) {
 			/* Add process ID to set. */
+            fprintf(stdlog, "Starting command: %s node: %i CPU: %i PID: %i\n",
+                cmd->cmd, node, cpu, pid);
 			pid_set_insert(set, pid, node, cpu, cmd->class);
 			node_process_count[node]++;
 			cpu_process_count[cpu]++;
@@ -352,6 +353,7 @@ void run_commands(void)
 /* Wait for terminated child processes. */
 void await_processes(void)
 {
+    unsigned long long int start_time;
 	int status;
 	pid_t pid;
 	process_t *process;
@@ -359,6 +361,7 @@ void await_processes(void)
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
 		process = pid_set_get_process(set, pid);
 		if (process != NULL) {
+            start_time = process->start_time;
 			node_process_count[process->node]--;
 			cpu_process_count[process->cpu]--;
 			pid_set_remove(set, pid);
@@ -366,8 +369,8 @@ void await_processes(void)
 			fprintf(stdlog, "Await process got a NULL process\n");
 		}
 		if (WIFEXITED(status)) {
-			fprintf(stdlog, "Process %i terminated with status %i\n",
-					pid, WEXITSTATUS(status));
+			fprintf(stdlog, "Process %i terminated with status %i, It ran %llu secs.\n",
+					pid, WEXITSTATUS(status), time(NULL)-start_time);
 			end_count++;
 		} else {
 			fprintf(stdlog, "Process %i terminated abnormally\n", pid);

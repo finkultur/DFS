@@ -3,6 +3,7 @@
  * Implementation of the pid set module. */
 
 #include <stdlib.h>
+#include <time.h>
 #include "pid_set.h"
 
 /* Type definition for a tree entry. */
@@ -268,6 +269,7 @@ static entry_t *create_entry(pid_t pid, int node, int cpu, int class)
 		entry->process.node = node;
 		entry->process.cpu = cpu;
 		entry->process.class = class;
+        entry->process.start_time = time(NULL);
 		entry->color = RED; /* New entries are red by default. */
 		entry->parent = NULL;
 		entry->left = NULL;

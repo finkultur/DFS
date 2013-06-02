@@ -23,6 +23,7 @@ struct process_descriptor_struct {
 	int node;
 	int cpu;
 	int class;
+    unsigned long long int start_time;
 };
 
 /* Creates a new set instance. A pointer handle to the new instance is returned

@@ -18,7 +18,7 @@
 #define SCHEDULING_INTERVAL 250
 
 /* Factor used to set a limit for when process migration should be performed. */
-#define MIGRATION_FACTOR 1.5
+#define MIGRATION_FACTOR 2
 
 /* Size of data buffers. */
 #define BUFFER_SIZE 256
