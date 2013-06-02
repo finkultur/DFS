@@ -56,5 +56,6 @@ process_t *pid_set_get_process(pid_set_t *set, pid_t pid);
  * exist, the first one encountered is returned. If no entry is found NULL is
  * returned. */
 process_t *pid_set_get_minimum_process(pid_set_t *set, int node);
+process_t *pid_set_get_maximum_process(pid_set_t *set, int node);
 
 #endif /* _PID_SET_H */

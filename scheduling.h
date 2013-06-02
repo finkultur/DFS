@@ -15,7 +15,7 @@
 #define CPU_COUNT 64
 
 /* Number of milliseconds between each invocation of the scheduling routine. */
-#define SCHEDULING_INTERVAL 250
+#define SCHEDULING_INTERVAL 250 
 
 /* Factor used to set a limit for when process migration should be performed. */
 #define MIGRATION_FACTOR 2

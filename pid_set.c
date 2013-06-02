@@ -38,6 +38,7 @@ static inline color_t get_color(entry_t *entry);
 static inline entry_t *get_sibling(entry_t *entry);
 static entry_t *find_entry(pid_set_t *set, pid_t pid);
 static entry_t *get_minimum_entry(entry_t *entry, entry_t *min_entry, int node);
+static entry_t *get_maximum_entry(entry_t *entry, entry_t *max_entry, int node);
 static entry_t *create_entry(pid_t pid, int entry, int cpu, int class);
 static void free_tree_entries(entry_t *entry);
 static void rotate_left(pid_set_t *set, entry_t *entry);
@@ -197,6 +198,17 @@ process_t *pid_set_get_minimum_process(pid_set_t *set, int node)
 	}
 }
 
+process_t *pid_set_get_maximum_process(pid_set_t *set, int node)
+{
+    entry_t *entry = get_maximum_entry(set->root, NULL, node);
+    if (entry != NULL) {
+        return &entry->process;
+    } else {
+        return NULL;
+    }
+}
+
+
 /* HELPER FUNCTIONS */
 
 /* Returns the color of the entry. If the entry is NULL, black is returned by
@@ -241,7 +253,7 @@ static entry_t *find_entry(pid_set_t *set, pid_t pid)
 /* Recursively traverses all entries returning the one with the lowest class
  * value for the node. The first one found is returned if multiple equal valued
  * entries exist. */
-entry_t *get_minimum_entry(entry_t *entry, entry_t *min_entry, int node)
+static entry_t *get_minimum_entry(entry_t *entry, entry_t *min_entry, int node)
 {
 	entry_t *candidate;
 	if (entry == NULL) {
@@ -259,6 +271,29 @@ entry_t *get_minimum_entry(entry_t *entry, entry_t *min_entry, int node)
 	}
 	return candidate;
 }
+
+/*
+ * Copy-n-paste code!
+ */
+static entry_t *get_maximum_entry(entry_t *entry, entry_t *max_entry, int node)
+{
+    entry_t *candidate;
+    if (entry == NULL) {
+        return max_entry;
+    } else if ((entry->process.node == node) && (max_entry == NULL)) {
+        candidate = get_maximum_entry(entry->left, entry, node);
+        candidate = get_maximum_entry(entry->right, candidate, node);
+    } else if ((entry->process.node == node)
+            && (entry->process.class > max_entry->process.class)) {
+        candidate = get_maximum_entry(entry->left, entry, node);
+        candidate = get_maximum_entry(entry->right, candidate, node);
+    } else {
+        candidate = get_maximum_entry(entry->left, max_entry, node);
+        candidate = get_maximum_entry(entry->right, candidate, node);
+    }
+    return candidate;
+}
+
 
 /* Creates and initializes a new entry. */
 static entry_t *create_entry(pid_t pid, int node, int cpu, int class)

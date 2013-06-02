@@ -257,8 +257,8 @@ void run_scheduler(void)
 		}
 	}
 	/* Do migration if needed. */
-	if (migrate && node_process_count[worst_node] > 0) {
-		process = pid_set_get_minimum_process(set, worst_node);
+	if (migrate && node_process_count[worst_node] > 1) {
+		process = pid_set_get_maximum_process(set, worst_node);
 		if (process == NULL) {
 			fprintf(stdlog, "Migrate got a NULL process\n");
 			return;

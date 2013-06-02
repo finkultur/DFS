@@ -7,7 +7,7 @@ OBJECTS = $(addprefix $(BUILDDIR)/, main.o cmd_queue.o pid_set.o scheduling.o)
 EXECUTABLE = $(BUILDDIR)/dfs
 BUILDDIR = ./build
 # Executing (using tile-monitor):
-EXEARGS = workloads/wl_110.txt logfile_wl110_dfs_run.txt
+EXEARGS = workloads/wl_100.txt logfile_wl100_dfs_run4.txt
 MONITOR = /opt/tilepro/bin/tile-monitor
 MONARGS = \
 	--pci \
@@ -19,7 +19,6 @@ MONARGS = \
 	--here
 
 MCSTAT = mcstat -c
-
 
 all: clean builddir $(OBJECTS) $(EXECUTABLE)
 	
