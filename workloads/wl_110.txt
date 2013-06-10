@@ -1,0 +1,110 @@
+2 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba.tif
+8 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode.jpeg ../../consumer_jpeg_data/1.ppm
+10 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+22 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+27 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+30 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw.tif
+30 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in
+58 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+62 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+72 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+78 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba1.tif
+88 5 /scratch/trashmem/ tmem
+89 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw1.tif
+90 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode1.jpeg ../../consumer_jpeg_data/1.ppm
+100 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw2.tif
+104 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode2.jpeg ../../consumer_jpeg_data/1.ppm
+105 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+115 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+124 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba2.tif
+139 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+141 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+145 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+154 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+156 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+166 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+178 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+182 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode3.jpeg ../../consumer_jpeg_data/1.ppm
+189 5 /scratch/trashmem/ tmem
+201 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+204 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+205 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+205 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode4.jpeg ../../consumer_jpeg_data/1.ppm
+210 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+215 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+216 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+220 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw3.tif
+224 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+229 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+232 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+243 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+245 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+266 5 /scratch/trashmem/ tmem
+269 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+276 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+277 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode5.jpeg ../../consumer_jpeg_data/1.ppm
+279 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+280 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+287 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba3.tif
+296 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+299 4 /scratch/cBench/network_patricia/src/ a.out ../../network_patricia_data/1.udp
+300 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+306 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode6.jpeg ../../consumer_jpeg_data/1.ppm
+306 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+314 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+324 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+335 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+335 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode7.jpeg ../../consumer_jpeg_data/1.ppm
+336 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode8.jpeg ../../consumer_jpeg_data/1.ppm
+336 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba4.tif
+339 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw4.tif
+340 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in
+344 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+344 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw5.tif
+345 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba5.tif
+346 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode9.jpeg ../../consumer_jpeg_data/1.ppm
+348 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+349 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+362 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+366 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+370 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+382 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+408 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba6.tif
+409 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+412 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw6.tif
+414 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+419 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+429 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in
+438 5 /scratch/trashmem/ tmem
+482 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+483 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+484 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba7.tif
+492 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode10.jpeg ../../consumer_jpeg_data/1.ppm
+500 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw7.tif
+559 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode11.jpeg ../../consumer_jpeg_data/1.ppm
+563 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+566 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw8.tif
+570 5 /scratch/trashmem/ tmem
+572 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba8.tif
+575 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw9.tif
+576 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+587 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+589 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+590 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+603 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+621 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+624 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+627 4 /scratch/cBench/consumer_tiff2bw/src a.out ../../consumer_tiff_data/1.tif output_largebw10.tif
+631 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+637 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in
+642 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/train/input/inp.in
+649 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba9.tif
+653 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/test/input/test.mps
+667 1 /scratch/cBench/automotive_bitcount/src/ a.out 1125000
+673 1 /scratch/cBench/network_dijkstra/src/ a.out ../../network_dijkstra_data/1.dat
+677 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+683 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/450.soplex/run/build_base_compsys.0000/ soplex ../../data/train/input/train.mps
+685 4 /opt/benchmarks/SPEC2006/benchspec/CPU2006/429.mcf/run/build_base_compsys.0000/ mcf ../../data/test/input/inp.in
+692 3 /scratch/cBench/consumer_jpeg_c/src/ a.out -dct int -progressive -opt -outfile output_large_encode12.jpeg ../../consumer_jpeg_data/1.ppm
+695 3 /opt/benchmarks/SPEC2006/benchspec/CPU2006/470.lbm/run/build_base_compsys.0000/ lbm 20 myreference.dat 0 1 ../../data/test/input/100_100_130_cf_a.of
+697 4 /scratch/cBench/consumer_tiff2rgba/src/ a.out -c none ../../consumer_tiff_data/1.tif output_largergba10.tif

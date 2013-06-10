@@ -7,7 +7,7 @@ OBJECTS = $(addprefix $(BUILDDIR)/, main.o cmd_queue.o scheduling.o)
 EXECUTABLE = $(BUILDDIR)/cfs
 BUILDDIR = ./build
 # Executing (using tile-monitor):
-EXEARGS = workloads/wl_107.txt logfile_wl107_cfs_run.txt
+EXEARGS = workloads/wl_110.txt logfile_wl110_cfs_run.txt
 MONITOR = /opt/tilepro/bin/tile-monitor
 MONARGS = \
 	--pci \
